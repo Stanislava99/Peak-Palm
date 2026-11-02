@@ -1,4 +1,4 @@
-import { HOST_REPLY, HOUSE_RULES } from "./booking-config";
+import { BALANCE_WHEN, HOST_REPLY, HOUSE_RULES } from "./booking-config";
 import type { Booking } from "./bookings";
 import { brand } from "./brand";
 import { formatMoney } from "./pricing";
@@ -71,12 +71,12 @@ function moneyRows(b: Booking, state: "held" | "deposit-paid" | "paid"): Row[] {
   return [
     ["Direct price", `<b>${formatMoney(b.directTotal)}</b>${b.airbnbTotal ? ` <span style="color:#6b6f66">(Airbnb: <s>${formatMoney(b.airbnbTotal)}</s>)</span>` : ""}`],
     ["Deposit", `${formatMoney(b.deposit)} · ${state === "held" ? "held on card, not charged yet" : "paid"}`],
-    ["Balance", `${formatMoney(b.balance)} · ${state === "paid" ? "paid" : "charged before arrival"}`],
+    ["Balance", `${formatMoney(b.balance)} · ${state === "paid" ? "paid in cash" : BALANCE_WHEN}`],
   ];
 }
 
 const textStay = (b: Booking) =>
-  `${HOUSE_NAMES[b.property]}\n${formatLong(b.checkIn)} → ${formatLong(b.checkOut)}, ${b.guests} guests\nReference: ${b.ref}\nDirect price: ${formatMoney(b.directTotal)} (deposit ${formatMoney(b.deposit)}, balance ${formatMoney(b.balance)})`;
+  `${HOUSE_NAMES[b.property]}\n${formatLong(b.checkIn)} → ${formatLong(b.checkOut)}, ${b.guests} guests\nReference: ${b.ref}\nDirect price: ${formatMoney(b.directTotal)} (deposit ${formatMoney(b.deposit)}, balance ${formatMoney(b.balance)} ${BALANCE_WHEN})`;
 
 /* ── Admin emails ── */
 
@@ -87,7 +87,7 @@ export function adminNewRequest(b: Booking) {
     html: layout(
       "New booking request",
       p(`<b>${esc(b.name)}</b> has booked ${esc(HOUSE_NAMES[b.property])} and <b>paid the ${formatMoney(b.deposit)} deposit</b>.`) +
-        p(`<b>Please confirm or decline on the admin page.</b> The guest gets their confirmation (with the PDF) only when you confirm. Declining refunds the deposit.`) +
+        p(`<b>Please confirm or decline on the admin page ${esc(HOST_REPLY)}.</b> The guest has been told the deposit is received and the booking awaits your confirmation. They get the confirmation (with the PDF) when you confirm; declining refunds the deposit in full.`) +
         rows([
           ...stayRows(b),
           ["Guest", esc(b.name)],
@@ -147,18 +147,43 @@ export function guestRequestReceived(b: Booking) {
   };
 }
 
+/** Sent as soon as the deposit is paid, while the host reviews the booking. */
+export function guestDepositReceived(b: Booking) {
+  const first = b.name.split(" ")[0];
+  return {
+    subject: `Deposit received, awaiting confirmation · ${HOUSE_NAMES[b.property]} · ${b.ref}`,
+    html: layout(
+      `Thank you, ${first}`,
+      p(`We’ve received your deposit of <b>${formatMoney(b.deposit)}</b>. Your dates at ${esc(HOUSE_NAMES[b.property])} are now <b>reserved for you</b> while ${esc(brand.host)} confirms the booking, ${esc(HOST_REPLY)}.`) +
+        rows([...stayRows(b), ...moneyRows(b, "deposit-paid")]) +
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 14px"><tr><td style="background:#efe8db;border-radius:12px;padding:14px 16px;font-size:14px;line-height:1.55;color:#1b2a24">
+<b>What happens next</b><br>
+1. ${esc(brand.host)} checks the dates and confirms ${esc(HOST_REPLY)}.<br>
+2. You receive your booking confirmation by email, with a PDF and the arrival details.<br>
+3. If the booking can’t be confirmed, your deposit is <b>refunded in full</b> to your card automatically, and we’ll email you.
+</td></tr></table>` +
+        p(`The remaining <b>${formatMoney(b.balance)}</b> is paid ${BALANCE_WHEN}. Questions in the meantime? Just reply to this email.`),
+    ),
+    text: `Thank you! We've received your deposit of ${formatMoney(b.deposit)}.
+${textStay(b)}
+
+Your dates are reserved while ${brand.host} confirms the booking (${HOST_REPLY}). You'll receive the confirmation with a PDF and arrival details by email. If it can't be confirmed, the deposit is refunded in full automatically.
+The remaining ${formatMoney(b.balance)} is paid ${BALANCE_WHEN}.`,
+  };
+}
+
 export function guestConfirmed(b: Booking) {
   const rules = HOUSE_RULES[b.property].map((r) => `<li style="margin:0 0 6px">${esc(r)}</li>`).join("");
   return {
     subject: `Booking confirmed · ${HOUSE_NAMES[b.property]} · ${formatLong(b.checkIn)}`,
     html: layout(
       "Your booking is confirmed",
-      p(`Great news, ${esc(b.name.split(" ")[0])}! ${esc(brand.host)} has confirmed your stay. Your deposit of <b>${formatMoney(b.deposit)}</b> has been charged.`) +
+      p(`Great news, ${esc(b.name.split(" ")[0])}! ${esc(brand.host)} has confirmed your stay. Your deposit of <b>${formatMoney(b.deposit)}</b> is already paid.`) +
         rows([...stayRows(b), ["Address", esc(HOUSE_PLACES[b.property])], ...moneyRows(b, "deposit-paid")]) +
-        p(`The remaining <b>${formatMoney(b.balance)}</b> will be charged to the same card before arrival. Your booking confirmation is attached as a PDF.`) +
+        p(`The remaining <b>${formatMoney(b.balance)}</b> is paid <b>${BALANCE_WHEN}</b>. Please have it ready in euros when you arrive. Your booking confirmation is attached as a PDF.`) +
         `<p style="margin:16px 0 6px;font-weight:600">House rules</p><ul style="margin:0 0 12px;padding-left:18px;font-size:14px;line-height:1.5">${rules}</ul>`,
     ),
-    text: `Your booking is confirmed!\n${textStay(b)}\nAddress: ${HOUSE_PLACES[b.property]}\nThe balance of ${formatMoney(b.balance)} is charged before arrival. Confirmation PDF attached.`,
+    text: `Your booking is confirmed!\n${textStay(b)}\nAddress: ${HOUSE_PLACES[b.property]}\nThe remaining ${formatMoney(b.balance)} is paid ${BALANCE_WHEN}. Confirmation PDF attached.`,
   };
 }
 

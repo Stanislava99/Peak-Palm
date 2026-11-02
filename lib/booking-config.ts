@@ -6,6 +6,8 @@ export const DEPOSIT_LABEL = `${Math.round(DEPOSIT_RATE * 100)}%`;
 
 /** Card holds expire after about 7 days, so the host must accept before then. */
 export const HOLD_DAYS = 7;
+/** The other half is paid in cash at the house. */
+export const BALANCE_WHEN = "in cash at check-in";
 /** What the guest is told about response time. */
 export const HOST_REPLY = "within 48 hours";
 
@@ -16,7 +18,7 @@ export const HOST_REPLY = "within 48 hours";
 export const CANCELLATION_POLICY = [
   "Free cancellation up to 30 days before check-in: the deposit is refunded in full.",
   "Cancelling within 30 days of check-in: the deposit is not refunded.",
-  "The balance is charged before arrival and refunded only if the host can re-let the dates.",
+  "The remaining 50% is paid in cash at check-in.",
 ];
 
 export const HOUSE_RULES: Record<PropertyId, string[]> = {

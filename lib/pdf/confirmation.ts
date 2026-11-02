@@ -86,7 +86,7 @@ export async function confirmationPdf(b: Booking, state: ConfirmationState, paid
     [`Accommodation, ${nights} night${nights === 1 ? "" : "s"} (direct booking price)`, formatMoney(b.directTotal)],
     ...(b.airbnbTotal ? ([["Same dates on Airbnb (for comparison)", `${formatMoney(b.airbnbTotal)} · you save ${formatMoney(b.airbnbTotal - b.directTotal)}`]] as Array<[string, string]>) : []),
     ["Deposit (50%), paid by card", `– ${formatMoney(b.deposit)}`],
-    ...(state === "paid" ? ([["Balance, paid by card", `– ${formatMoney(b.balance)}`]] as Array<[string, string]>) : []),
+    ...(state === "paid" ? ([["Balance, paid in cash", `– ${formatMoney(b.balance)}`]] as Array<[string, string]>) : []),
   ], regular, bold, true);
 
   // Totals box
@@ -94,7 +94,7 @@ export async function confirmationPdf(b: Booking, state: ConfirmationState, paid
   page.drawRectangle({ x: M, y: y - 52, width: width - M * 2, height: 52, color: SAND, borderColor: LINE, borderWidth: 1 });
   page.drawText("Paid", { x: M + 16, y: y - 22, size: 10, font: regular, color: MUTED });
   page.drawText(formatMoney(paid), { x: M + 16, y: y - 42, size: 16, font: bold, color: PINE });
-  rightText(page, due > 0 ? "Balance due before arrival" : "Balance due", width - M - 16, y - 22, regular, 10, MUTED);
+  rightText(page, due > 0 ? "Balance due in cash at check-in" : "Balance due", width - M - 16, y - 22, regular, 10, MUTED);
   rightText(page, formatMoney(due), width - M - 16, y - 42, bold, 16, due > 0 ? INK : PINE);
   y -= 70;
 

@@ -1,11 +1,12 @@
 import { Availability } from "@/components/Availability";
-import { Enquiry } from "@/components/Enquiry";
+import { MeetHosts } from "@/components/MeetHosts";
 import { Gallery } from "@/components/Gallery";
 import { GuestScore, Stars } from "@/components/GuestScore";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { Icon, type IconName } from "@/components/Icons";
 import { janisPhotos, janisRooms } from "@/lib/janis-photos";
+import { fetchAirbnbReviews } from "@/lib/reviews";
 import { fetchAirbnbRating, type AirbnbRating, type CalendarDay } from "@/lib/listings";
 import { getProperty } from "@/lib/properties";
 import { calendarWithSources, type CalendarSources } from "@/lib/reservations";
@@ -65,8 +66,9 @@ const categories: Array<[keyof AirbnbRating["categories"], string]> = [
 ];
 
 export default async function JanisPage() {
-  const [rating, calendar] = await Promise.all([
+  const [rating, reviews, calendar] = await Promise.all([
     fetchAirbnbRating("janis"),
+    fetchAirbnbReviews("janis"),
     calendarWithSources("janis").then(
       ({ days, sources }) => ({ days, sources, error: null as string | null }),
       () => ({
@@ -154,6 +156,7 @@ export default async function JanisPage() {
         <GuestScore
           score={rating.score}
           live={rating.live}
+          reviews={reviews}
           count={rating.count}
           airbnbUrl={house.airbnbUrl}
           categories={categories.map(([key, label]) => ({ label, score: rating.categories[key] }))}
@@ -182,14 +185,14 @@ export default async function JanisPage() {
           kicker="The whole house · up to 9 guests"
           finePrint="Self check-in with a lockbox. Quiet hours are 11:00 pm to 8:00 am. The house is reserved for your group only."
           airbnbUrl={house.airbnbUrl}
-          intro={`Pick your dates and guests to see your direct price, ${DIRECT_DISCOUNT_LABEL} below Airbnb. At checkout you pay a 50% deposit; the host then confirms your booking by email.`}
+          intro={`Pick your dates and guests to see your direct price, ${DIRECT_DISCOUNT_LABEL} below Airbnb. At checkout you pay a 50% deposit (the rest in cash at check-in); the host then confirms your booking by email.`}
           initialDays={calendar.days}
           initialError={calendar.error}
           initialSources={calendar.sources}
           paymentsOn={paymentsEnabled()}
         />
 
-        <Enquiry property="janis" house="Jani’s Beach House" />
+        <MeetHosts property="janis" house="Jani’s Beach House" reviewCount={rating.count} communication={rating.categories.communication} />
 
         <section id="location" className="section location">
           <div>

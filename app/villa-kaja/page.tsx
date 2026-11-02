@@ -1,5 +1,5 @@
 import { Availability } from "@/components/Availability";
-import { Enquiry } from "@/components/Enquiry";
+import { MeetHosts } from "@/components/MeetHosts";
 import { Gallery } from "@/components/Gallery";
 import { GuestScore, Stars } from "@/components/GuestScore";
 import { Footer } from "@/components/Footer";
@@ -7,6 +7,7 @@ import { Header } from "@/components/Header";
 import { Icon, type IconName } from "@/components/Icons";
 import { photos, rooms } from "@/lib/photos";
 import { getProperty } from "@/lib/properties";
+import { fetchAirbnbReviews } from "@/lib/reviews";
 import { fetchAirbnbRating, type AirbnbRating, type CalendarDay } from "@/lib/listings";
 import { calendarWithSources, type CalendarSources } from "@/lib/reservations";
 import { DIRECT_DISCOUNT_LABEL } from "@/lib/pricing";
@@ -60,8 +61,9 @@ const categories: Array<[keyof AirbnbRating["categories"], string]> = [
 ];
 
 export default async function VillaKajaPage() {
-  const [rating, calendar] = await Promise.all([
+  const [rating, reviews, calendar] = await Promise.all([
     fetchAirbnbRating(),
+    fetchAirbnbReviews("kaja"),
     calendarWithSources().then(
       ({ days, sources }) => ({ days, sources, error: null as string | null }),
       () => ({
@@ -147,6 +149,7 @@ export default async function VillaKajaPage() {
         <GuestScore
           score={rating.score}
           live={rating.live}
+          reviews={reviews}
           superhost
           count={rating.count}
           airbnbUrl={AIRBNB_URL}
@@ -176,14 +179,14 @@ export default async function VillaKajaPage() {
           kicker="Whole chalet · up to 15 guests"
           finePrint="Check-in after 4:00 pm. Check-out by 11:00 am. The house is reserved for your group only."
           airbnbUrl={AIRBNB_URL}
-          intro={`Pick your dates and guests to see your direct price, ${DIRECT_DISCOUNT_LABEL} below Airbnb. At checkout you pay a 50% deposit; the host then confirms your booking by email.`}
+          intro={`Pick your dates and guests to see your direct price, ${DIRECT_DISCOUNT_LABEL} below Airbnb. At checkout you pay a 50% deposit (the rest in cash at check-in); the host then confirms your booking by email.`}
           initialDays={calendar.days}
           initialError={calendar.error}
           initialSources={calendar.sources}
           paymentsOn={paymentsEnabled()}
         />
 
-        <Enquiry property="kaja" house="Villa Kaja" />
+        <MeetHosts property="kaja" house="Villa Kaja" reviewCount={rating.count} communication={rating.categories.communication} />
 
         <section id="location" className="section location">
           <div>

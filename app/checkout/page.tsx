@@ -202,8 +202,8 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                   </span>
                 </li>
                 <li>
-                  <b>Before arrival · {formatMoney(split!.balance)}</b>
-                  <span>The rest, charged to the same card before check-in.</span>
+                  <b>At check-in · {formatMoney(split!.balance)}</b>
+                  <span>The other {DEPOSIT_LABEL}, paid in cash (euros) when you arrive.</span>
                 </li>
               </ol>
               <p className="summary-secure">

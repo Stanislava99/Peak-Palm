@@ -117,7 +117,6 @@ export async function POST(request: Request) {
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      customer_creation: "always",
       customer_email: email,
       locale: "en",
       client_reference_id: ref,
@@ -137,14 +136,13 @@ export async function POST(request: Request) {
       payment_method_types: ["card"],
       payment_method_options: { card: { request_three_d_secure: "any" } },
       payment_intent_data: {
-        setup_future_usage: "off_session",
         description: `${ref} · ${HOUSE_NAMES[property]} · ${checkIn} → ${checkOut}`,
         metadata,
       },
       metadata,
       custom_text: {
         submit: {
-          message: `You pay the 50% deposit now. The host confirms your booking ${HOST_REPLY}; if the dates can’t be confirmed, the deposit is refunded in full.`,
+          message: `You pay the 50% deposit now and the rest in cash at check-in. The host confirms your booking ${HOST_REPLY}; if the dates can’t be confirmed, the deposit is refunded in full.`,
         },
       },
       expires_at: Math.floor(Date.now() / 1000) + 30 * 60,

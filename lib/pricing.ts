@@ -6,7 +6,7 @@ export const DIRECT_DISCOUNT = 0.1;
 export const DIRECT_DISCOUNT_LABEL = `${Math.round(DIRECT_DISCOUNT * 100)}%`;
 
 const CURRENCY = "EUR";
-const FALLBACK_KEY = "d306zoyjsyarp7ifhu67rjxn52tv0t20";
+export const FALLBACK_KEY = "d306zoyjsyarp7ifhu67rjxn52tv0t20";
 /** Airbnb’s persisted query for the listing page sections (same one the booking box uses). */
 const PDP_HASH = "80c7889b4b0027d99ffea830f6c0d4911a6e863a957cbe1044823f0fc746bf1f";
 const BROWSER =
@@ -111,7 +111,7 @@ export function parseAirbnbQuote(
   return { total: Math.round(total * 100) / 100, label, lines };
 }
 
-async function freshApiKey(): Promise<string | null> {
+export async function freshApiKey(): Promise<string | null> {
   try {
     const response = await fetch("https://www.airbnb.com/", {
       headers: { "User-Agent": BROWSER, "Accept-Language": "en" },
@@ -124,7 +124,11 @@ async function freshApiKey(): Promise<string | null> {
   }
 }
 
-function quoteUrl(listingId: string, checkIn: string, checkOut: string, guests: number) {
+type SectionsOptions = { sectionIds: string[]; checkIn?: string | null; checkOut?: string | null; guests?: number; translateUgc?: boolean };
+
+/** Airbnb listing-page sections request (read-only). Used for prices and reviews. */
+export function pdpSectionsUrl(listingId: string, options: SectionsOptions) {
+  const { sectionIds, checkIn = null, checkOut = null, guests = 1, translateUgc = false } = options;
   const encode = (prefix: string) => Buffer.from(`${prefix}:${listingId}`).toString("base64");
   const variables = {
     id: encode("StayListing"),
@@ -158,9 +162,9 @@ function quoteUrl(listingId: string, checkIn: string, checkOut: string, guests: 
       selectedRatePlanId: null,
       splitStays: null,
       staysBookingMigrationEnabled: false,
-      translateUgc: null,
+      translateUgc: translateUgc || null,
       useNewSectionWrapperApi: false,
-      sectionIds: ["BOOK_IT_SIDEBAR", "BOOK_IT_FLOATING_FOOTER"],
+      sectionIds,
       checkIn,
       checkOut,
     },
@@ -174,7 +178,11 @@ function quoteUrl(listingId: string, checkIn: string, checkOut: string, guests: 
   return url;
 }
 
-async function requestQuote(url: URL, key: string) {
+function quoteUrl(listingId: string, checkIn: string, checkOut: string, guests: number) {
+  return pdpSectionsUrl(listingId, { sectionIds: ["BOOK_IT_SIDEBAR", "BOOK_IT_FLOATING_FOOTER"], checkIn, checkOut, guests });
+}
+
+export async function requestSections(url: URL, key: string, revalidate = 1800) {
   const response = await fetch(url, {
     headers: {
       "User-Agent": BROWSER,
@@ -183,7 +191,7 @@ async function requestQuote(url: URL, key: string) {
       "Content-Type": "application/json",
       "X-Airbnb-Api-Key": key,
     },
-    next: { revalidate: 1800 },
+    next: { revalidate },
   });
   if (!response.ok) return null;
   return response.json().catch(() => null);
@@ -206,12 +214,12 @@ export async function fetchStayQuote(
 
   const url = quoteUrl(getProperty(property).airbnbId, checkIn, checkOut, guests);
   try {
-    let data = await requestQuote(url, FALLBACK_KEY);
+    let data = await requestSections(url, FALLBACK_KEY);
     let parsed = data ? parseAirbnbQuote(data, nights) : null;
     if (!parsed) {
       const key = await freshApiKey();
       if (key && key !== FALLBACK_KEY) {
-        data = await requestQuote(url, key);
+        data = await requestSections(url, key);
         parsed = data ? parseAirbnbQuote(data, nights) : null;
       }
     }

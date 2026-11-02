@@ -1,6 +1,6 @@
 import { SITE_TAG, bookingFromIntent, forgetBookedNights, type Booking } from "@/lib/bookings";
 import { sendEmail } from "@/lib/email";
-import { HOUSE_NAMES, adminEvent, adminNewRequest, guestBalancePaid } from "@/lib/email-templates";
+import { HOUSE_NAMES, adminEvent, adminNewRequest, guestBalancePaid, guestDepositReceived } from "@/lib/email-templates";
 import { confirmationPdf } from "@/lib/pdf/confirmation";
 import { notifyEmails } from "@/lib/site-config";
 import { getStripe } from "@/lib/stripe";
@@ -15,7 +15,8 @@ export const dynamic = "force-dynamic";
  * Each email is sent once: a flag is stored on the payment after sending, and Stripe’s retries skip it.
  * Events to enable on the endpoint:
  *   payment_intent.succeeded, payment_intent.payment_failed
- * Deposit paid → hosts are notified. Confirmation/decline emails are sent from the admin page.
+ * Deposit paid → hosts are notified, and the guest gets "deposit received, awaiting confirmation".
+ * Confirmation/decline emails are sent from the admin page.
  */
 export async function POST(request: Request) {
   const stripe = getStripe();
@@ -73,12 +74,15 @@ async function handle(stripe: Stripe, type: string, intent: Stripe.PaymentIntent
     if (!booking) return;
     forgetBookedNights(booking.property);
 
-    // Deposit paid → tell the hosts. The guest hears from us only when the host confirms.
+    // Deposit paid → tell the hosts, and tell the guest the money is received and what happens next.
     const paid = type === "payment_intent.succeeded" || (type === "payment_intent.amount_capturable_updated" && intent.status === "requires_capture");
     if (paid && booking.status === "pending") {
       await once(stripe, intent, "mailedRequest", async () =>
         mail(notifyEmails(), adminNewRequest(booking), undefined, booking.email),
       );
+      if (booking.email) {
+        await once(stripe, intent, "mailedGuestPending", async () => mail([booking.email], guestDepositReceived(booking)));
+      }
     }
     return;
   }

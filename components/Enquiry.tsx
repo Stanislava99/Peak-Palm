@@ -3,7 +3,8 @@
 import { useState, type FormEvent } from "react";
 import type { PropertyId } from "@/lib/properties";
 
-export function Enquiry({ property, house }: { property: PropertyId; house: string }) {
+/** The ask-a-question form (used inside the "Meet your host" section). */
+export function AskForm({ property, hostName }: { property: PropertyId; hostName: string }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -34,49 +35,42 @@ export function Enquiry({ property, house }: { property: PropertyId; house: stri
     }
   }
 
-  return (
-    <section id="ask" className="section ask">
-      <div className="section-head">
-        <p className="eyebrow">Before you decide</p>
-        <h2>Ask about {house}</h2>
-        <p>The host reads these and replies by email. A question does not hold any dates.</p>
+  if (sent) {
+    return (
+      <div className="reserve-done ask-done">
+        <strong>Question sent</strong>
+        <p>
+          {hostName} will reply to {email}.
+        </p>
       </div>
-      {sent ? (
-        <div className="reserve-done ask-done">
-          <strong>Question sent</strong>
-          <p>Frosina will reply to {email}.</p>
-        </div>
-      ) : (
-        <form className="reserve-form ask-form" onSubmit={submit}>
-          <label>
-            Name
-            <input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" required />
-          </label>
-          <label>
-            Email
-            <input
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              type="email"
-              autoComplete="email"
-              required
-            />
-          </label>
-          <label>
-            Question
-            <textarea
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-              required
-              placeholder="Arrival time, extra beds, how the house works…"
-            />
-          </label>
-          {error ? <p className="reserve-error">{error}</p> : null}
-          <button className="book-button reserve" type="submit" disabled={sending}>
-            {sending ? "Sending…" : "Send the question"}
-          </button>
-        </form>
-      )}
-    </section>
+    );
+  }
+
+  return (
+    <form className="reserve-form ask-form" onSubmit={submit}>
+      <div className="ask-row">
+        <label>
+          Name
+          <input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" required />
+        </label>
+        <label>
+          Email
+          <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" required />
+        </label>
+      </div>
+      <label>
+        Question
+        <textarea
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+          required
+          placeholder="Arrival time, extra beds, how the house works…"
+        />
+      </label>
+      {error ? <p className="reserve-error">{error}</p> : null}
+      <button className="book-button reserve" type="submit" disabled={sending}>
+        {sending ? "Sending…" : "Send the question"}
+      </button>
+    </form>
   );
 }

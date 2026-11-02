@@ -64,8 +64,9 @@ export default async function SuccessPage({ searchParams }: { searchParams: Prom
               </div>
             </dl>
             <p className="success-next">
-              Your booking confirmation, with a PDF, will be sent to <b>{booking.email}</b>. The remaining{" "}
-              {formatMoney(booking.balance)} is charged to the same card before arrival.
+              We’ve emailed a receipt to <b>{booking.email}</b>. Your booking confirmation, with a PDF, follows as soon as{" "}
+              {brand.host} confirms. If the dates can’t be confirmed, your deposit is refunded in full. The remaining{" "}
+              {formatMoney(booking.balance)} is paid in cash at check-in.
             </p>
             <a className="button primary" href="/">
               Back to {brand.short}

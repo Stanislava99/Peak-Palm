@@ -93,7 +93,7 @@ export function bookingFromIntent(intent: Stripe.PaymentIntent): Booking | null 
     directTotal: Number(m.directTotal) || 0,
     deposit: Number(m.deposit) || intent.amount / 100,
     balance: Number(m.balance) || 0,
-    balancePaid: Boolean(m.balancePaymentIntent),
+    balancePaid: Boolean(m.balancePaymentIntent || m.balanceCash),
     status: statusOf(intent),
     createdAt: created.toISOString(),
     holdExpiresAt: expires.toISOString(),

@@ -70,9 +70,9 @@ Then deploy again: `npm run deploy:test` / `npm run deploy:prod`.
 ## 5. Try it on the test site
 
 1. Open the test address → a house → pick dates → **Continue to checkout** → fill in → pay with `4242 4242 4242 4242`, any future date, any CVC.
-2. The deposit is paid right away. Both admin inboxes get **New booking, please confirm**. The guest gets nothing yet.
+2. The deposit is paid right away. Both admin inboxes get **New booking, please confirm**. The guest gets **Deposit received, awaiting confirmation** (dates reserved; full refund if declined).
 3. Go to `/admin` → enter your email → open the link → enter the 6-digit code → **Confirm booking & send confirmation**.
-4. The guest’s first email: **Booking confirmed** with the PDF; you get a copy. Later, **Charge balance** → **Paid in full** + updated PDF.
+4. The guest gets **Booking confirmed** with the PDF; you get a copy. The other 50% is paid **in cash at check-in**: when you receive it, click **Balance received in cash** on `/admin`.
    (**Decline & refund** refunds the deposit in full and tells the guest.)
 
 When everything works on the test site, repeat steps 3–4 with live keys for the live site.

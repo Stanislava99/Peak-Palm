@@ -150,7 +150,7 @@ export function HostLogout() {
   );
 }
 
-type Action = "accept" | "decline" | "charge-balance" | "balance-link";
+type Action = "accept" | "decline" | "cash-received" | "cash-undo";
 
 export function HostActions({ id, status, balancePaid }: { id: string; status: string; balancePaid: boolean }) {
   const [busy, setBusy] = useState<Action | null>(null);
@@ -197,19 +197,19 @@ export function HostActions({ id, status, balancePaid }: { id: string; status: s
         </>
       ) : null}
       {status === "confirmed" && !balancePaid ? (
-        <>
-          <button
-            className="button primary"
-            type="button"
-            disabled={Boolean(busy)}
-            onClick={() => run("charge-balance", "Charge the balance to the guest’s saved card now?")}
-          >
-            {busy === "charge-balance" ? "Charging…" : "Charge balance"}
-          </button>
-          <button className="button ghost" type="button" disabled={Boolean(busy)} onClick={() => run("balance-link")}>
-            {busy === "balance-link" ? "Creating…" : "Payment link instead"}
-          </button>
-        </>
+        <button
+          className="button primary"
+          type="button"
+          disabled={Boolean(busy)}
+          onClick={() => run("cash-received", "Mark the balance as received in cash?")}
+        >
+          {busy === "cash-received" ? "Saving…" : "Balance received in cash"}
+        </button>
+      ) : null}
+      {status === "confirmed" && balancePaid ? (
+        <button className="button ghost" type="button" disabled={Boolean(busy)} onClick={() => run("cash-undo", "Undo: mark the balance as not received?")}>
+          {busy === "cash-undo" ? "Saving…" : "Undo cash received"}
+        </button>
       ) : null}
       {message ? <p className="host-ok">{message}</p> : null}
       {link ? (

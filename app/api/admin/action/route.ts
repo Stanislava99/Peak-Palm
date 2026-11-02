@@ -1,21 +1,19 @@
-import { SITE_TAG, bookingFromIntent, forgetBookedNights, listBookings } from "@/lib/bookings";
+import { bookingFromIntent, forgetBookedNights, listBookings } from "@/lib/bookings";
 import { notifyConfirmed, notifyDeclined } from "@/lib/booking-notify";
 import { guard } from "@/lib/security";
 import { isTestSite } from "@/lib/site-config";
 import { eachNight } from "@/lib/stay";
-import { isHost } from "@/lib/host-auth";
+import { currentAdmin } from "@/lib/host-auth";
 import { getStripe } from "@/lib/stripe";
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
 
-type Action = "accept" | "decline" | "charge-balance" | "balance-link";
-
-const NAMES = { kaja: "Villa Kaja", janis: "Jani’s Beach House" } as const;
+type Action = "accept" | "decline" | "cash-received" | "cash-undo";
 
 export async function POST(request: Request) {
   const blocked = guard(request, "host-action", [[60, 10 * 60_000]]);
   if (blocked) return blocked;
-  if (!(await isHost())) return NextResponse.json({ error: "Please log in again." }, { status: 401 });
+  const admin = await currentAdmin();
+  if (!admin) return NextResponse.json({ error: "Please log in again." }, { status: 401 });
   const stripe = getStripe();
   if (!stripe) return NextResponse.json({ error: "Stripe is not set up." }, { status: 503 });
 
@@ -79,72 +77,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, message: "Declined. The deposit has been refunded in full and the guest informed." });
     }
 
-    if (booking.status !== "confirmed") {
-      return NextResponse.json({ error: "Confirm the booking before charging the balance." }, { status: 409 });
-    }
-    const paidBefore = await stripe.paymentIntents.search({
-      query: `metadata['site']:'${SITE_TAG}' AND metadata['kind']:'balance' AND metadata['depositIntent']:'${intent.id}' AND status:'succeeded'`,
-      limit: 1,
-    });
-    if (intent.metadata.balancePaymentIntent || paidBefore.data.length) {
-      return NextResponse.json({ error: "The balance is already paid." }, { status: 409 });
-    }
-    const customer = typeof intent.customer === "string" ? intent.customer : intent.customer?.id;
-    const paymentMethod = typeof intent.payment_method === "string" ? intent.payment_method : intent.payment_method?.id;
-    const description = `${booking.ref} · ${NAMES[booking.property]} · balance`;
-    const metadata = { site: SITE_TAG, kind: "balance", ref: booking.ref, depositIntent: intent.id, property: booking.property };
-
-    if (body.action === "charge-balance") {
-      if (!customer || !paymentMethod) {
-        return NextResponse.json({ error: "No saved card for this guest. Send a payment link instead." }, { status: 409 });
+    if (body.action === "cash-received" || body.action === "cash-undo") {
+      if (booking.status !== "confirmed") {
+        return NextResponse.json({ error: "Confirm the booking first." }, { status: 409 });
       }
-      const balance = await stripe.paymentIntents.create({
-        amount: Math.round(booking.balance * 100),
-        currency: "eur",
-        customer,
-        payment_method: paymentMethod,
-        off_session: true,
-        confirm: true,
-        description,
-        receipt_email: booking.email || undefined,
-        metadata,
-      }, { idempotencyKey: `balance-${intent.id}` });
-      await stripe.paymentIntents.update(intent.id, { metadata: { balancePaymentIntent: balance.id } });
-      return NextResponse.json({ ok: true, message: `Balance of ${booking.balance} € charged.` });
-    }
-
-    if (body.action === "balance-link") {
-      const origin = request.headers.get("origin") ?? new URL(request.url).origin;
-      const session = await stripe.checkout.sessions.create({
-        mode: "payment",
-        customer: customer ?? undefined,
-        customer_email: customer ? undefined : booking.email,
-        locale: "en",
-        line_items: [
-          {
-            quantity: 1,
-            price_data: {
-              currency: "eur",
-              unit_amount: Math.round(booking.balance * 100),
-              product_data: { name: `${NAMES[booking.property]} · balance`, description: `${booking.ref} · ${booking.checkIn} → ${booking.checkOut}` },
-            },
-          },
-        ],
-        payment_intent_data: { description, metadata },
-        payment_method_options: { card: { request_three_d_secure: "any" } },
-        expires_at: Math.floor(Date.now() / 1000) + 24 * 3600,
-        success_url: `${origin}/?balance=paid`,
-        cancel_url: `${origin}/`,
+      if (body.action === "cash-undo") {
+        await stripe.paymentIntents.update(intent.id, { metadata: { balanceCash: "" } });
+        return NextResponse.json({ ok: true, message: "Balance marked as not received." });
+      }
+      if (intent.metadata.balanceCash) return NextResponse.json({ ok: true, message: "Already marked as received." });
+      await stripe.paymentIntents.update(intent.id, {
+        metadata: { balanceCash: `${new Date().toISOString()} ${admin}`.slice(0, 480) },
       });
-      return NextResponse.json({ ok: true, url: session.url, message: "Payment link created. Copy it and send it to the guest." });
+      return NextResponse.json({ ok: true, message: `Balance of ${booking.balance} € marked as received in cash.` });
     }
   } catch (error) {
-    if (error instanceof Stripe.errors.StripeCardError) {
-      return NextResponse.json(
-        { error: `The card was declined (${error.code ?? "card error"}). Send the guest a payment link instead.` },
-        { status: 402 },
-      );
-    }
     console.error("Host action failed", error);
     return NextResponse.json({ error: "Stripe didn’t accept that. Check the payment in your Stripe dashboard." }, { status: 502 });
   }

@@ -99,7 +99,7 @@ function BookingRow({ booking, paid }: { booking: Booking; paid: boolean }) {
           </dd>
           <dt>Balance</dt>
           <dd>
-            {formatMoney(booking.balance)} {balancePaid ? "paid" : booking.status === "confirmed" ? "to charge" : ""}
+            {formatMoney(booking.balance)} {balancePaid ? "received in cash" : booking.status === "confirmed" ? "due in cash at check-in" : "in cash at check-in"}
           </dd>
           <dt>Stripe</dt>
           <dd>

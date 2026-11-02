@@ -1,5 +1,7 @@
 import { brand } from "@/lib/brand";
+import type { Review } from "@/lib/reviews";
 import { Icon, type IconName } from "./Icons";
+import { ReviewDeck } from "./ReviewDeck";
 
 type Category = {
   label: string;
@@ -46,6 +48,7 @@ export function GuestScore({
   airbnbUrl,
   superhost = false,
   live = false,
+  reviews = [],
 }: {
   score: number;
   count: number;
@@ -53,11 +56,30 @@ export function GuestScore({
   airbnbUrl: string;
   superhost?: boolean;
   live?: boolean;
+  reviews?: Review[];
 }) {
   const best = categories.reduce((top, item) => (item.score > top.score ? item : top), categories[0]);
+  const withReviews = reviews.length > 0;
+
+  const cats = (
+    <ul className="rating-cats">
+      {categories.map((item) => (
+        <li key={item.label}>
+          <span className="rating-cat-icon">
+            <Icon name={categoryIcons[item.label] ?? "star"} size={withReviews ? 15 : 20} />
+          </span>
+          <span className="rating-cat-label">{item.label}</span>
+          <span className="rating-cat-bar" aria-hidden="true">
+            <span style={{ width: `${Math.max(4, Math.min(100, (item.score - 4) * 100))}%` }} />
+          </span>
+          <strong>{item.score.toFixed(2)}</strong>
+        </li>
+      ))}
+    </ul>
+  );
 
   return (
-    <section className="rating" aria-label="Guest rating">
+    <section className={`rating${withReviews ? " has-reviews" : ""}`} aria-label="Guest rating">
       <div className="rating-summary">
         <p className="eyebrow">Guest rating</p>
         <div className="rating-score">
@@ -75,25 +97,14 @@ export function GuestScore({
             <Icon name="star" size={16} /> {brand.host} is an Airbnb Superhost
           </p>
         ) : null}
-        <a className="rating-link" href={airbnbUrl} target="_blank" rel="noreferrer">
-          Read the reviews on Airbnb <Icon name="arrow" size={16} />
-        </a>
+        {withReviews ? cats : (
+          <a className="rating-link" href={airbnbUrl} target="_blank" rel="noreferrer">
+            Read the reviews on Airbnb <Icon name="arrow" size={16} />
+          </a>
+        )}
       </div>
 
-      <ul className="rating-cats">
-        {categories.map((item) => (
-          <li key={item.label}>
-            <span className="rating-cat-icon">
-              <Icon name={categoryIcons[item.label] ?? "star"} size={20} />
-            </span>
-            <span className="rating-cat-label">{item.label}</span>
-            <span className="rating-cat-bar" aria-hidden="true">
-              <span style={{ width: `${Math.max(4, Math.min(100, (item.score - 4) * 100))}%` }} />
-            </span>
-            <strong>{item.score.toFixed(2)}</strong>
-          </li>
-        ))}
-      </ul>
+      {withReviews ? <ReviewDeck reviews={reviews} airbnbUrl={airbnbUrl} /> : cats}
     </section>
   );
 }

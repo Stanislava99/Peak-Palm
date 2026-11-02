@@ -235,7 +235,7 @@ export function Availability({
                   </a>
                   <p className="card-hint">
                     {paymentsOn
-                      ? `Pay a ${DEPOSIT_LABEL} deposit at checkout; the rest is charged before arrival.`
+                      ? `Pay a ${DEPOSIT_LABEL} deposit at checkout; the rest in cash at check-in.`
                       : "At checkout you send your details; the host confirms by email and sends a secure payment link."}
                   </p>
                 </>

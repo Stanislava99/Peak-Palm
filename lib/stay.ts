@@ -57,23 +57,23 @@ export function evaluateStay(days: CalendarDay[], checkIn: string, checkOut: str
     return { ok: false, nights, message: "Choose a check-in and a later check-out." };
   }
   if (!start.checkin) {
-    return { ok: false, nights, message: "Airbnb is not offering check-in on that date." };
+    return { ok: false, nights, message: "Check-in isn’t possible on that date." };
   }
   if (!end.checkout) {
-    return { ok: false, nights, message: "Airbnb is not offering check-out on that date." };
+    return { ok: false, nights, message: "Check-out isn’t possible on that date." };
   }
   if (nights < start.minNights) {
     return {
       ok: false,
       nights,
-      message: `Airbnb requires at least ${start.minNights} nights from ${formatDay(checkIn)}.`,
+      message: `Stays from ${formatDay(checkIn)} need at least ${start.minNights} nights.`,
     };
   }
   if (nights > start.maxNights) {
     return {
       ok: false,
       nights,
-      message: `Airbnb limits this arrival to ${start.maxNights} nights.`,
+      message: `Stays from this date can be up to ${start.maxNights} nights.`,
     };
   }
   const blocked = eachNight(checkIn, checkOut).filter((date) => !byDate.get(date)?.available);
@@ -81,7 +81,7 @@ export function evaluateStay(days: CalendarDay[], checkIn: string, checkOut: str
     return {
       ok: false,
       nights,
-      message: `Already booked on Airbnb: ${blocked
+      message: `Already booked: ${blocked
         .slice(0, 3)
         .map(formatDay)
         .join(", ")}${blocked.length > 3 ? " and other nights" : ""}.`,
@@ -90,7 +90,7 @@ export function evaluateStay(days: CalendarDay[], checkIn: string, checkOut: str
   return {
     ok: true,
     nights,
-    message: `Open on Airbnb for ${nights} night${nights === 1 ? "" : "s"}.`,
+    message: `Free for ${nights} night${nights === 1 ? "" : "s"}.`,
   };
 }
 

@@ -5,3 +5,8 @@ out
 *.log
 data
 tsconfig.tsbuildinfo
+
+# secrets: never commit
+.env*
+!.env.example
+.vercel

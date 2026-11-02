@@ -1,20 +1,42 @@
 import { Availability } from "@/components/Availability";
+import { Enquiry } from "@/components/Enquiry";
 import { Gallery } from "@/components/Gallery";
+import { GuestScore, Stars } from "@/components/GuestScore";
+import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { Icon, type IconName } from "@/components/Icons";
 import { janisPhotos, janisRooms } from "@/lib/janis-photos";
 import { fetchAirbnbRating, type AirbnbRating, type CalendarDay } from "@/lib/listings";
 import { getProperty } from "@/lib/properties";
-import { calendarWithHolds } from "@/lib/reservations";
+import { calendarWithSources, type CalendarSources } from "@/lib/reservations";
+import { DIRECT_DISCOUNT_LABEL } from "@/lib/pricing";
+import { paymentsEnabled } from "@/lib/stripe";
+import { getSiteUrl } from "@/lib/site";
+import Image from "next/image";
 import type { Metadata } from "next";
 
 export const revalidate = 1800;
 
 const house = getProperty("janis");
 
+const description =
+  "Holiday house in Neoi Epivates, Greece, near Thessaloniki, for up to 9 guests. Three bedrooms, sea-view balconies, and a Blue Flag beach about 30 metres away.";
+
 export const metadata: Metadata = {
-  title: "Jani’s Beach House · Neoi Epivates",
-  description:
-    "A beachfront house in Neoi Epivates for up to 9 guests. Three bedrooms, four bathrooms, sea-view balconies, and the sand about 30 metres away.",
+  title: "Jani’s Beach House — beach house near Thessaloniki",
+  description,
+  alternates: { canonical: "/janis" },
+  openGraph: {
+    title: "Jani’s Beach House — beach house near Thessaloniki",
+    description,
+    url: "/janis",
+    images: [
+      {
+        url: "/photos/janis/01-cover.jpg",
+        alt: "The path from Jani’s Beach House down to the sea",
+      },
+    ],
+  },
 };
 
 const facts = [
@@ -24,13 +46,13 @@ const facts = [
   { value: "30 m", label: "To the beach" },
 ];
 
-const amenities = [
-  ["The beach", "A Blue Flag sandy beach about 30 metres from the door, with the gulf in front of the house."],
-  ["Sea-view terraces", "Balconies look over the water toward Thessaloniki. Sunbeds and umbrellas are included."],
-  ["Three bedrooms", "All enclosed. One is a duplex, with beds on two levels and its own stairs."],
-  ["Kitchen and dining", "The half-basement holds the kitchen, dining table, and living space, and opens to the yard."],
-  ["Backyard", "A private seating courtyard for coffee and long evenings. Barbecues are not allowed."],
-  ["Self check-in", "A lockbox on the door, so the group can arrive without waiting for a handover."],
+const amenities: Array<[IconName, string, string]> = [
+  ["sea", "The beach", "A Blue Flag sandy beach about 30 metres from the door, with the gulf in front of the house."],
+  ["umbrella", "Sea-view terraces", "Balconies look over the water toward Thessaloniki. Sunbeds and umbrellas are included."],
+  ["bed", "Three bedrooms", "All enclosed. One is a duplex, with beds on two levels and its own stairs."],
+  ["kitchen", "Kitchen and dining", "The half-basement holds the kitchen, dining table, and living space, and opens to the yard."],
+  ["leaf", "Backyard", "A private seating courtyard for coffee and long evenings. Barbecues are not allowed."],
+  ["key", "Self check-in", "A lockbox on the door, so the group can arrive without waiting for a handover."],
 ];
 
 const categories: Array<[keyof AirbnbRating["categories"], string]> = [
@@ -45,10 +67,11 @@ const categories: Array<[keyof AirbnbRating["categories"], string]> = [
 export default async function JanisPage() {
   const [rating, calendar] = await Promise.all([
     fetchAirbnbRating("janis"),
-    calendarWithHolds("janis").then(
-      (days) => ({ days, error: null as string | null }),
+    calendarWithSources("janis").then(
+      ({ days, sources }) => ({ days, sources, error: null as string | null }),
       () => ({
         days: [] as CalendarDay[],
+        sources: { booking: "not-configured" } as CalendarSources,
         error: "Airbnb’s calendar did not respond. You can still open the listing to check dates.",
       }),
     ),
@@ -56,31 +79,32 @@ export default async function JanisPage() {
 
   return (
     <>
-      <Header brand="Jani’s Beach House" />
+      <Header house="Jani’s Beach House" sibling={{ href: "/villa-kaja", label: "The Peak · Bansko" }} />
       <main id="top">
         <section className="hero">
-          <img
-            src="/photos/janis/01-cover.jpg"
-            alt="The path from Jani’s Beach House down to the sea, the cover photo from the Airbnb listing"
-          />
+          <Image src="/photos/janis/01-cover.jpg" alt="The path from Jani’s Beach House down to the sea, the cover photo from the Airbnb listing" fill priority sizes="100vw" />
           <div className="hero-shade" />
           <div className="hero-copy">
-            <p className="eyebrow light">Neoi Epivates · Thermaikos</p>
-            <h1>A beach house, a short walk from the sand.</h1>
+            <p className="eyebrow light">The Palm · Neoi Epivates · Thermaikos</p>
+            <h1 className="hero-title">Jani’s Beach House</h1>
+            <p className="hero-sub">A beach house, a short walk from the sand.</p>
             <p className="lede">
               Jani’s Beach House is booked as a whole house for families and friends. The gulf is in front of the
               balconies, and Thessaloniki is a short drive when you want the city.
             </p>
             <div className="rating-row">
               <a className="rating-pill" href={house.airbnbUrl} target="_blank" rel="noreferrer">
-                <span>Airbnb</span>
+                <Stars score={rating.score} size={15} />
                 <strong>{rating.score.toFixed(2)}</strong>
-                <em>{rating.count} reviews</em>
+                <em>{rating.count} reviews on Airbnb</em>
               </a>
             </div>
-            <a className="hero-cta" href="#stay">
-              Check availability
-            </a>
+            <div className="hero-actions">
+              <a className="hero-cta" href="#stay">
+                Book direct and save {DIRECT_DISCOUNT_LABEL}
+              </a>
+              <span className="hero-note">{DIRECT_DISCOUNT_LABEL} below the Airbnb price for the same dates</span>
+            </div>
           </div>
         </section>
 
@@ -115,8 +139,8 @@ export default async function JanisPage() {
             </ul>
           </div>
           <div className="house-photos">
-            <img src="/photos/janis/15-beach.jpg" alt="Balcony table looking over the sea" />
-            <img src="/photos/janis/02-cover.jpg" alt="Living room opening toward the kitchen and dining table" />
+            <span className="house-photo"><Image src="/photos/janis/15-beach.jpg" alt="Balcony table looking over the sea" fill sizes="(max-width: 900px) 100vw, 28vw" /></span>
+            <span className="house-photo"><Image src="/photos/janis/02-cover.jpg" alt="Living room opening toward the kitchen and dining table" fill sizes="(max-width: 900px) 100vw, 28vw" /></span>
           </div>
         </section>
 
@@ -124,7 +148,15 @@ export default async function JanisPage() {
           photos={janisPhotos}
           rooms={janisRooms}
           title="The house, from the beach inward"
-          intro="Photographs are taken from the Jani’s Beach House Airbnb listing, the same set guests see before they book."
+          intro="From the path down to the sand, through the balconies, and into the rooms."
+        />
+
+        <GuestScore
+          score={rating.score}
+          live={rating.live}
+          count={rating.count}
+          airbnbUrl={house.airbnbUrl}
+          categories={categories.map(([key, label]) => ({ label, score: rating.categories[key] }))}
         />
 
         <section className="section amenities">
@@ -133,55 +165,13 @@ export default async function JanisPage() {
             <h2>What you have to yourselves</h2>
           </div>
           <div className="amenity-grid">
-            {amenities.map(([title, text]) => (
+            {amenities.map(([icon, title, text]) => (
               <article key={title}>
+                <span className="amenity-icon"><Icon name={icon} size={26} /></span>
                 <h3>{title}</h3>
                 <p>{text}</p>
               </article>
             ))}
-          </div>
-        </section>
-
-        <section className="section scores">
-          <div className="section-head">
-            <p className="eyebrow">Guest scores</p>
-            <h2>Rated by people who have stayed</h2>
-          </div>
-          <div className="score-grid">
-            <article className="score-card">
-              <header>
-                <span>Airbnb</span>
-                <strong>{rating.score.toFixed(2)}</strong>
-              </header>
-              <p>{rating.count} reviews</p>
-              <ul>
-                {categories.map(([key, label]) => (
-                  <li key={key}>
-                    <span>{label}</span>
-                    <span className="bar" style={{ ["--score" as string]: rating.categories[key] }}>
-                      <i />
-                    </span>
-                    <em>{rating.categories[key].toFixed(2)}</em>
-                  </li>
-                ))}
-              </ul>
-              <a href={house.airbnbUrl} target="_blank" rel="noreferrer">
-                Read the Airbnb reviews
-              </a>
-            </article>
-            <article className="score-card">
-              <header>
-                <span>Around you</span>
-                <strong>30 m</strong>
-              </header>
-              <p>From the door to a Blue Flag beach on the Thermaic Gulf.</p>
-              <ul className="nearby">
-                <li>Gorgona tavern · about 50 metres</li>
-                <li>Thessaloniki centre · about 20 km</li>
-                <li>Thessaloniki Airport · about 9 km</li>
-                <li>Quiet hours · 11:00 pm to 8:00 am</li>
-              </ul>
-            </article>
           </div>
         </section>
 
@@ -192,12 +182,14 @@ export default async function JanisPage() {
           kicker="The whole house · up to 9 guests"
           finePrint="Self check-in with a lockbox. Quiet hours are 11:00 pm to 8:00 am. The house is reserved for your group only."
           airbnbUrl={house.airbnbUrl}
-          bookingUrl={null}
-          intro="Open nights follow the Airbnb calendar, including stays already requested here. Reserve directly, or continue on Airbnb with the same dates."
+          intro={`Pick your dates and guests to see your direct price, ${DIRECT_DISCOUNT_LABEL} below Airbnb. At checkout you pay a 50% deposit; the host then confirms your booking by email.`}
           initialDays={calendar.days}
           initialError={calendar.error}
-          booking={null}
+          initialSources={calendar.sources}
+          paymentsOn={paymentsEnabled()}
         />
+
+        <Enquiry property="janis" house="Jani’s Beach House" />
 
         <section id="location" className="section location">
           <div>
@@ -229,19 +221,7 @@ export default async function JanisPage() {
           />
         </section>
       </main>
-      <footer className="site-footer">
-        <div>
-          <strong>Jani’s Beach House</strong>
-          <p>Neoi Epivates, Thermaikos, Greece</p>
-        </div>
-        <div className="footer-links">
-          <a href={house.airbnbUrl} target="_blank" rel="noreferrer">
-            Airbnb
-          </a>
-          <a href="#stay">Availability</a>
-          <a href="/">Both houses</a>
-        </div>
-      </footer>
+      <Footer address="Jani’s Beach House, Neoi Epivates, Thermaikos" />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -249,6 +229,9 @@ export default async function JanisPage() {
             "@context": "https://schema.org",
             "@type": "VacationRental",
             name: "Jani’s Beach House",
+            url: `${getSiteUrl()}/janis`,
+            image: `${getSiteUrl()}/photos/janis/01-cover.jpg`,
+            sameAs: house.airbnbUrl,
             description:
               "Beachfront house in Neoi Epivates for up to 9 guests, with three bedrooms, four bathrooms, and the sand about 30 metres away.",
             address: {

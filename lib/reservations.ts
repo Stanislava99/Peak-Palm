@@ -1,6 +1,8 @@
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { fetchAirbnbCalendar, type CalendarDay } from "./listings";
+import { directBookedNights } from "./bookings";
+import { fetchBookingNights, type ChannelNights } from "./ical";
 import type { PropertyId } from "./properties";
 import { eachNight } from "./stay";
 
@@ -14,6 +16,9 @@ export type Reservation = {
   email: string;
   phone: string;
   note: string;
+  /** Prices at the moment of the request, in EUR. Null if Airbnb gave no price. */
+  airbnbTotal: number | null;
+  directTotal: number | null;
   createdAt: string;
 };
 
@@ -55,13 +60,26 @@ export function reservationOverlaps(reservations: Reservation[], checkIn: string
   return false;
 }
 
-export async function calendarWithHolds(property: PropertyId = "kaja"): Promise<CalendarDay[]> {
-  const [days, reservations] = await Promise.all([
+export type CalendarSources = { booking: ChannelNights["status"] };
+
+/** Marks nights booked elsewhere (Booking.com, requests on this site) as taken. */
+export function applyBlockedNights(days: CalendarDay[], blocked: Set<string>) {
+  return days.map((day) => (blocked.has(day.date) ? { ...day, available: false, checkin: false } : day));
+}
+
+export async function calendarWithSources(
+  property: PropertyId = "kaja",
+): Promise<{ days: CalendarDay[]; sources: CalendarSources }> {
+  const [days, reservations, booking, direct] = await Promise.all([
     fetchAirbnbCalendar(property),
     readReservations(property),
+    fetchBookingNights(property),
+    directBookedNights(property),
   ]);
-  const held = heldNights(reservations);
-  return days.map((day) =>
-    held.has(day.date) ? { ...day, available: false, checkin: false } : day,
-  );
+  const blocked = new Set([...heldNights(reservations), ...booking.nights, ...direct]);
+  return { days: applyBlockedNights(days, blocked), sources: { booking: booking.status } };
+}
+
+export async function calendarWithHolds(property: PropertyId = "kaja"): Promise<CalendarDay[]> {
+  return (await calendarWithSources(property)).days;
 }

@@ -1,55 +1,58 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
+import { brand } from "@/lib/brand";
+import { Lockup } from "./Logo";
 
-type Season = "winter" | "summer";
+type Side = "peak" | "palm";
 
 export function HouseGate() {
-  const [focus, setFocus] = useState<Season | null>(null);
+  const [focus, setFocus] = useState<Side | null>(null);
+
+  const hover = (side: Side) => ({
+    onMouseEnter: () => setFocus(side),
+    onMouseLeave: () => setFocus(null),
+    onFocus: () => setFocus(side),
+    onBlur: () => setFocus(null),
+  });
 
   return (
-    <main className={`gate${focus ? ` focus-${focus}` : ""}`}>
-      <header className="gate-top">
+    <section className={`gate${focus ? ` focus-${focus}` : ""}`} aria-label="Choose a house">
+      <div className="gate-top">
         <div className="gate-lockup">
-          <p>Two houses</p>
-          <h1>Winter and summer</h1>
-          <p className="gate-lede">A chalet in Bansko for the snow. A beach house on the gulf for the sea.</p>
+          <h1 className="sr-only">{brand.name}</h1>
+          <Lockup tone="light" layout="stack" cut="transparent" />
+          <p className="gate-lede">{brand.tagline}</p>
         </div>
-      </header>
-      <a
-        className="gate-pane winter"
-        href="/villa-kaja"
-        onMouseEnter={() => setFocus("winter")}
-        onMouseLeave={() => setFocus(null)}
-        onFocus={() => setFocus("winter")}
-        onBlur={() => setFocus(null)}
-      >
-        <img src="/photos/01-exterior.jpg" alt="" />
+      </div>
+      <a className="gate-pane winter" href="/villa-kaja" {...hover("peak")}>
+        <Image src="/photos/01-exterior.jpg" alt="" fill priority sizes="100vw" />
         <span className="gate-shade" />
         <span className="gate-copy">
-          <em>Winter</em>
+          <em>The Peak · Winter</em>
           <strong>Villa Kaja</strong>
-          <span>Bansko · a private chalet by the gondola</span>
-          <i>Open</i>
+          <span>Bansko, Bulgaria · a private chalet five minutes from the gondola</span>
+          <i>
+            Explore the chalet <b aria-hidden="true">→</b>
+          </i>
         </span>
       </a>
-      <a
-        className="gate-pane summer"
-        href="/janis"
-        onMouseEnter={() => setFocus("summer")}
-        onMouseLeave={() => setFocus(null)}
-        onFocus={() => setFocus("summer")}
-        onBlur={() => setFocus(null)}
-      >
-        <img src="/photos/janis/01-cover.jpg" alt="" />
+      <a className="gate-pane summer" href="/janis" {...hover("palm")}>
+        <Image src="/photos/janis/01-cover.jpg" alt="" fill priority sizes="100vw" />
         <span className="gate-shade" />
         <span className="gate-copy">
-          <em>Summer</em>
+          <em>The Palm · Summer</em>
           <strong>Jani’s Beach House</strong>
-          <span>Neoi Epivates · a short walk to the sand</span>
-          <i>Open</i>
+          <span>Neoi Epivates, Greece · about 30 metres from the sand</span>
+          <i>
+            Explore the beach house <b aria-hidden="true">→</b>
+          </i>
         </span>
       </a>
-    </main>
+      <a className="gate-scroll" href="#houses" aria-label="Scroll to the houses">
+        <span />
+      </a>
+    </section>
   );
 }

@@ -1,27 +1,37 @@
 import { Availability } from "@/components/Availability";
+import { Enquiry } from "@/components/Enquiry";
 import { Gallery } from "@/components/Gallery";
+import { GuestScore, Stars } from "@/components/GuestScore";
+import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { Icon, type IconName } from "@/components/Icons";
 import { photos, rooms } from "@/lib/photos";
 import { getProperty } from "@/lib/properties";
-import {
-  fetchAirbnbRating,
-  fetchBookingListing,
-  type AirbnbRating,
-  type BookingListing,
-  type CalendarDay,
-} from "@/lib/listings";
-import { calendarWithHolds } from "@/lib/reservations";
+import { fetchAirbnbRating, type AirbnbRating, type CalendarDay } from "@/lib/listings";
+import { calendarWithSources, type CalendarSources } from "@/lib/reservations";
+import { DIRECT_DISCOUNT_LABEL } from "@/lib/pricing";
+import { paymentsEnabled } from "@/lib/stripe";
+import { getSiteUrl } from "@/lib/site";
+import Image from "next/image";
 
 export const revalidate = 1800;
 
 const house = getProperty("kaja");
 const AIRBNB_URL = house.airbnbUrl;
-const BOOKING_URL = house.bookingUrl ?? AIRBNB_URL;
+
+const description =
+  "Private holiday house in Bansko, Bulgaria, for up to 15 guests. Five bedrooms, a private sauna, ski storage, parking, and about a five-minute walk to the gondola.";
 
 export const metadata = {
-  title: "Villa Kaja Bansko · Private chalet by the gondola",
-  description:
-    "A private holiday chalet in Bansko for up to 15 guests. Five bedrooms, a private sauna, ski storage, and a five-minute walk to the gondola.",
+  title: "Villa Kaja Bansko — holiday house near the gondola",
+  description,
+  alternates: { canonical: "/villa-kaja" },
+  openGraph: {
+    title: "Villa Kaja Bansko — holiday house near the gondola",
+    description,
+    url: "/villa-kaja",
+    images: [{ url: "/photos/01-exterior.jpg", alt: "The front of Villa Kaja in Bansko" }],
+  },
 };
 
 const facts = [
@@ -31,13 +41,13 @@ const facts = [
   { value: "5 min", label: "To the gondola" },
 ];
 
-const amenities = [
-  ["Private sauna", "Pine sauna with a shower and changing space, reserved for your group."],
-  ["Five bedrooms", "Four double or triple rooms and one quad apartment, each with a bathroom."],
-  ["Kitchen and dining", "Cook together, then sit the whole group at the table."],
-  ["Living room", "Sofas, a large TV, and a foosball table for the evenings."],
-  ["Ski storage", "A rack by the stone wall so boots and skis stay out of the hallway."],
-  ["Parking", "Private parking on the property, on a quiet residential street."],
+const amenities: Array<[IconName, string, string]> = [
+  ["sauna", "Private sauna", "Pine sauna with a shower and changing space, reserved for your group."],
+  ["bed", "Five bedrooms", "Four double or triple rooms and one quad apartment, each with a bathroom."],
+  ["kitchen", "Kitchen and dining", "Cook together, then sit the whole group at the table."],
+  ["sofa", "Living room", "Sofas, a large TV, and a foosball table for the evenings."],
+  ["ski", "Ski storage", "A rack by the stone wall so boots and skis stay out of the hallway."],
+  ["parking", "Parking", "Private parking on the property, on a quiet residential street."],
 ];
 
 const categories: Array<[keyof AirbnbRating["categories"], string]> = [
@@ -49,57 +59,46 @@ const categories: Array<[keyof AirbnbRating["categories"], string]> = [
   ["value", "Value"],
 ];
 
-export default async function HomePage() {
-  const [rating, bookingResult, calendar] = await Promise.all([
+export default async function VillaKajaPage() {
+  const [rating, calendar] = await Promise.all([
     fetchAirbnbRating(),
-    fetchBookingListing(),
-    calendarWithHolds().then(
-      (days) => ({ days, error: null as string | null }),
+    calendarWithSources().then(
+      ({ days, sources }) => ({ days, sources, error: null as string | null }),
       () => ({
         days: [] as CalendarDay[],
+        sources: { booking: "not-configured" } as CalendarSources,
         error: "Airbnb’s calendar did not respond. You can still open the listing to check dates.",
       }),
     ),
   ]);
-  const booking = bookingResult ?? {
-    scoreLabel: "Exceptional",
-    reviewCount: 16,
-    state: "closed" as const,
-    url: BOOKING_URL,
-  };
-
   return (
     <>
-      <Header brand="Villa Kaja" />
+      <Header house="Villa Kaja" sibling={{ href: "/janis", label: "The Palm · Greece" }} />
       <main id="top">
         <section className="hero">
-          <img
-            src="/photos/01-exterior.jpg"
-            alt="Villa Kaja, a white and stone chalet with a balcony, on a cobbled street in Bansko"
-          />
+          <Image src="/photos/01-exterior.jpg" alt="Villa Kaja, a white and stone chalet with a balcony, on a cobbled street in Bansko" fill priority sizes="100vw" />
           <div className="hero-shade" />
           <div className="hero-copy">
-            <p className="eyebrow light">Bansko · Sveti Ivan Rilski 18</p>
-            <h1>A private chalet, five minutes from the gondola.</h1>
+            <p className="eyebrow light">The Peak · Bansko · Sveti Ivan Rilski 18</p>
+            <h1 className="hero-title">Villa Kaja</h1>
+            <p className="hero-sub">A private chalet, five minutes from the gondola.</p>
             <p className="lede">
               Villa Kaja is booked as a whole house for families and groups of friends. Walk to the lifts in the
               morning and come back to your own sauna, kitchen, and living room.
             </p>
             <div className="rating-row">
               <a className="rating-pill" href={AIRBNB_URL} target="_blank" rel="noreferrer">
-                <span>Airbnb</span>
+                <Stars score={rating.score} size={15} />
                 <strong>{rating.score.toFixed(2)}</strong>
-                <em>{rating.count} reviews</em>
-              </a>
-              <a className="rating-pill" href={BOOKING_URL} target="_blank" rel="noreferrer">
-                <span>Booking.com</span>
-                <strong>{booking.scoreLabel}</strong>
-                <em>{booking.reviewCount} reviews</em>
+                <em>{rating.count} reviews on Airbnb</em>
               </a>
             </div>
-            <a className="hero-cta" href="#stay">
-              Check availability
-            </a>
+            <div className="hero-actions">
+              <a className="hero-cta" href="#stay">
+                Book direct and save {DIRECT_DISCOUNT_LABEL}
+              </a>
+              <span className="hero-note">{DIRECT_DISCOUNT_LABEL} below the Airbnb price for the same dates</span>
+            </div>
           </div>
         </section>
 
@@ -133,8 +132,8 @@ export default async function HomePage() {
             </ul>
           </div>
           <div className="house-photos">
-            <img src="/photos/02-living.jpg" alt="Living and dining room with a red sofa and a long oak table" />
-            <img src="/photos/08-bedroom-1.jpg" alt="A bright bedroom with a large bed and turquoise cushions" />
+            <span className="house-photo"><Image src="/photos/02-living.jpg" alt="Living and dining room with a red sofa and a long oak table" fill sizes="(max-width: 900px) 100vw, 28vw" /></span>
+            <span className="house-photo"><Image src="/photos/08-bedroom-1.jpg" alt="A bright bedroom with a large bed and turquoise cushions" fill sizes="(max-width: 900px) 100vw, 28vw" /></span>
           </div>
         </section>
 
@@ -142,7 +141,16 @@ export default async function HomePage() {
           photos={photos}
           rooms={rooms}
           title="The chalet, room by room"
-          intro="Photographs are taken from the Villa Kaja Airbnb listing, the same set guests see before they book."
+          intro="Move through the house the way a guest does, from the street to the sauna."
+        />
+
+        <GuestScore
+          score={rating.score}
+          live={rating.live}
+          superhost
+          count={rating.count}
+          airbnbUrl={AIRBNB_URL}
+          categories={categories.map(([key, label]) => ({ label, score: rating.categories[key] }))}
         />
 
         <section className="section amenities">
@@ -151,53 +159,13 @@ export default async function HomePage() {
             <h2>What you have to yourselves</h2>
           </div>
           <div className="amenity-grid">
-            {amenities.map(([title, text]) => (
+            {amenities.map(([icon, title, text]) => (
               <article key={title}>
+                <span className="amenity-icon"><Icon name={icon} size={26} /></span>
                 <h3>{title}</h3>
                 <p>{text}</p>
               </article>
             ))}
-          </div>
-        </section>
-
-        <section className="section scores">
-          <div className="section-head">
-            <p className="eyebrow">Guest scores</p>
-            <h2>Rated on both places people already book</h2>
-          </div>
-          <div className="score-grid">
-            <article className="score-card">
-              <header>
-                <span>Airbnb</span>
-                <strong>{rating.score.toFixed(2)}</strong>
-              </header>
-              <p>{rating.count} reviews · guest favourite</p>
-              <ul>
-                {categories.map(([key, label]) => (
-                  <li key={key}>
-                    <span>{label}</span>
-                    <span className="bar" style={{ ["--score" as string]: rating.categories[key] }}>
-                      <i />
-                    </span>
-                    <em>{rating.categories[key].toFixed(2)}</em>
-                  </li>
-                ))}
-              </ul>
-              <a href={AIRBNB_URL} target="_blank" rel="noreferrer">
-                Read the Airbnb reviews
-              </a>
-            </article>
-            <article className="score-card booking-card">
-              <header>
-                <span>Booking.com</span>
-                <strong>{booking.scoreLabel}</strong>
-              </header>
-              <p>{booking.reviewCount} reviews on the Villa Kaja Bansko listing.</p>
-              <p className="booking-state">{bookingCopy(booking)}</p>
-              <a href={BOOKING_URL} target="_blank" rel="noreferrer">
-                Open the Booking.com listing
-              </a>
-            </article>
           </div>
         </section>
 
@@ -208,12 +176,14 @@ export default async function HomePage() {
           kicker="Whole chalet · up to 15 guests"
           finePrint="Check-in after 4:00 pm. Check-out by 11:00 am. The house is reserved for your group only."
           airbnbUrl={AIRBNB_URL}
-          bookingUrl={house.bookingUrl}
-          intro="Open nights follow the Airbnb calendar, including stays already requested here. Reserve directly, or continue on Airbnb or Booking.com with the same dates."
+          intro={`Pick your dates and guests to see your direct price, ${DIRECT_DISCOUNT_LABEL} below Airbnb. At checkout you pay a 50% deposit; the host then confirms your booking by email.`}
           initialDays={calendar.days}
           initialError={calendar.error}
-          booking={booking}
+          initialSources={calendar.sources}
+          paymentsOn={paymentsEnabled()}
         />
+
+        <Enquiry property="kaja" house="Villa Kaja" />
 
         <section id="location" className="section location">
           <div>
@@ -244,22 +214,7 @@ export default async function HomePage() {
           />
         </section>
       </main>
-      <footer className="site-footer">
-        <div>
-          <strong>Villa Kaja</strong>
-          <p>18 Sveti Ivan Rilski Street, Bansko, Bulgaria</p>
-        </div>
-        <div className="footer-links">
-          <a href={AIRBNB_URL} target="_blank" rel="noreferrer">
-            Airbnb
-          </a>
-          <a href={BOOKING_URL} target="_blank" rel="noreferrer">
-            Booking.com
-          </a>
-          <a href="#stay">Availability</a>
-          <a href="/">Both houses</a>
-        </div>
-      </footer>
+      <Footer address="Villa Kaja, 18 Sveti Ivan Rilski Street, Bansko" />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -267,6 +222,9 @@ export default async function HomePage() {
             "@context": "https://schema.org",
             "@type": "VacationRental",
             name: "Villa Kaja",
+            url: `${getSiteUrl()}/villa-kaja`,
+            image: `${getSiteUrl()}/photos/01-exterior.jpg`,
+            sameAs: AIRBNB_URL,
             description:
               "Private holiday chalet in Bansko for up to 15 guests, with five bedrooms, a private sauna, and gondola access on foot.",
             address: {
@@ -291,12 +249,3 @@ export default async function HomePage() {
   );
 }
 
-function bookingCopy(booking: BookingListing) {
-  if (booking.state === "open") {
-    return "The listing is open. Choose dates below and continue on Booking.com to see the price.";
-  }
-  if (booking.state === "closed") {
-    return "The listing page currently redirects as closed, so Booking.com has no nights available. The score above is the one published on that listing. Live dates below come from Airbnb.";
-  }
-  return "Booking.com did not confirm the listing status on the last check. Use the link to see it directly.";
-}

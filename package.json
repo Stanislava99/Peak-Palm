@@ -1,20 +1,34 @@
 {
-  "name": "villa-kaja",
+  "name": "peak-and-palm-villas",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "host:2fa": "node scripts/host-2fa.mjs",
+    "deploy:test": "npx --yes vercel@latest deploy --prod --project peak-and-palm-test --create-if-missing",
+    "deploy:prod": "npx --yes vercel@latest deploy --prod --project kajastays"
   },
   "dependencies": {
+    "@fontsource-variable/cormorant-garamond": "^5.3.0",
+    "@fontsource-variable/jost": "^5.3.0",
+    "@fontsource/cinzel": "^5.3.0",
+    "@pdf-lib/fontkit": "^1.1.1",
     "next": "^15.5.6",
+    "nodemailer": "^10.1.7",
+    "pdf-lib": "^1.17.1",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "stripe": "^22.6.2"
   },
   "devDependencies": {
     "@types/node": "^22.19.0",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "postcss": "8.5.31"
   }
 }

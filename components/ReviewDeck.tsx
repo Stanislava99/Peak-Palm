@@ -73,7 +73,7 @@ export function ReviewDeck({ reviews, airbnbUrl }: { reviews: Review[]; airbnbUr
       className={`review-deck${paused || still ? " is-paused" : ""}`}
       role="region"
       aria-roledescription="carousel"
-      aria-label="Guest reviews from Airbnb"
+      aria-label="Guest reviews"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
@@ -118,9 +118,18 @@ export function ReviewDeck({ reviews, airbnbUrl }: { reviews: Review[]; airbnbUr
                 <span>
                   <b>{review.name}</b>
                   <small>
-                    {review.date}
+                    {review.verified ? `Stayed ${review.date}` : review.date}
                     {review.translated ? " · translated by Airbnb" : ""}
                   </small>
+                </span>
+                <span className={`review-source${review.verified ? " is-direct" : ""}`}>
+                  {review.verified ? (
+                    <>
+                      <Icon name="check" size={13} /> Verified direct stay
+                    </>
+                  ) : (
+                    "Airbnb"
+                  )}
                 </span>
               </figcaption>
             </figure>

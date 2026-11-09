@@ -321,6 +321,11 @@ function Month({
               key={iso}
               type="button"
               disabled={past || !day}
+              data-date={iso}
+              aria-label={`${new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })}${
+                past ? "" : taken ? ", booked" : !day?.checkin && iso !== checkIn ? ", no check-in" : ", available"
+              }${endpoint ? ", selected" : ""}`}
+              aria-pressed={endpoint}
               className={[
                 taken ? "is-taken" : "",
                 inRange ? "is-range" : "",

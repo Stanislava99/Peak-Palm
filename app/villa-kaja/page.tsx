@@ -8,6 +8,7 @@ import { Icon, type IconName } from "@/components/Icons";
 import { photos, rooms } from "@/lib/photos";
 import { getProperty } from "@/lib/properties";
 import { fetchAirbnbReviews } from "@/lib/reviews";
+import { publishedDirectReviews } from "@/lib/guest-reviews";
 import { fetchAirbnbRating, type AirbnbRating, type CalendarDay } from "@/lib/listings";
 import { calendarWithSources, type CalendarSources } from "@/lib/reservations";
 import { DIRECT_DISCOUNT_LABEL } from "@/lib/pricing";
@@ -63,7 +64,7 @@ const categories: Array<[keyof AirbnbRating["categories"], string]> = [
 export default async function VillaKajaPage() {
   const [rating, reviews, calendar] = await Promise.all([
     fetchAirbnbRating(),
-    fetchAirbnbReviews("kaja"),
+    Promise.all([publishedDirectReviews("kaja"), fetchAirbnbReviews("kaja")]).then(([direct, airbnb]) => [...direct, ...airbnb]),
     calendarWithSources().then(
       ({ days, sources }) => ({ days, sources, error: null as string | null }),
       () => ({
@@ -75,13 +76,13 @@ export default async function VillaKajaPage() {
   ]);
   return (
     <>
-      <Header house="Villa Kaja" sibling={{ href: "/janis", label: "The Palm · Greece" }} />
+      <Header house="Villa Kaja" sibling={{ href: "/janis", label: "Sea · Greece" }} />
       <main id="top">
         <section className="hero">
           <Image src="/photos/01-exterior.jpg" alt="Villa Kaja, a white and stone chalet with a balcony, on a cobbled street in Bansko" fill priority sizes="100vw" />
           <div className="hero-shade" />
           <div className="hero-copy">
-            <p className="eyebrow light">The Peak · Bansko · Sveti Ivan Rilski 18</p>
+            <p className="eyebrow light">Ski · Bansko · Sveti Ivan Rilski 18</p>
             <h1 className="hero-title">Villa Kaja</h1>
             <p className="hero-sub">A private chalet, five minutes from the gondola.</p>
             <p className="lede">
@@ -183,7 +184,7 @@ export default async function VillaKajaPage() {
           initialDays={calendar.days}
           initialError={calendar.error}
           initialSources={calendar.sources}
-          paymentsOn={paymentsEnabled()}
+          paymentsOn={paymentsEnabled("kaja")}
         />
 
         <MeetHosts property="kaja" house="Villa Kaja" reviewCount={rating.count} communication={rating.categories.communication} />

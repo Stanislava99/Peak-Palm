@@ -45,7 +45,7 @@ export function Header({ sections = true, sibling, house }: Props) {
         <i aria-hidden="true">→</i>
       </a>
       <div className="header-row">
-      <a className="brand" href="/" aria-label="Peak & Palm Villas, home">
+      <a className="brand" href="/" aria-label="Sea & Ski Villas, home">
         <span className="brand-light">
           <Lockup tone="light" cut="transparent" />
         </span>

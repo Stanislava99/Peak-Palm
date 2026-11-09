@@ -34,6 +34,10 @@ export const HOUSE_RULES: Record<PropertyId, string[]> = {
   ],
 };
 
+/** The optional, unticked offers box at checkout (also quoted in the privacy notice). */
+export const OFFERS_LINE =
+  "Send me occasional offers and news for Villa Kaja and Jani’s Beach House by email. You can unsubscribe at any time.";
+
 export function splitPayment(directTotal: number) {
   const deposit = Math.round(directTotal * DEPOSIT_RATE);
   return { deposit, balance: directTotal - deposit };

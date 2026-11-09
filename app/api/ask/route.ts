@@ -16,7 +16,7 @@ type Payload = {
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
-  const blocked = guard(request, "ask", [[5, 10 * 60_000], [20, 24 * 3600_000]]);
+  const blocked = await guard(request, "ask", [[5, 10 * 60_000], [20, 24 * 3600_000]]);
   if (blocked) return blocked;
   const body = (await request.json().catch(() => null)) as Payload | null;
   if (!body) {

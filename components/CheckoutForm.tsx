@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { DEPOSIT_LABEL } from "@/lib/booking-config";
+import { DEPOSIT_LABEL, OFFERS_LINE } from "@/lib/booking-config";
 import { formatMoney } from "@/lib/pricing";
 import type { PropertyId } from "@/lib/properties";
 
@@ -30,6 +30,7 @@ export function CheckoutForm({
   const [arrival, setArrival] = useState(ARRIVAL_TIMES[0]);
   const [note, setNote] = useState("");
   const [accepted, setAccepted] = useState(false);
+  const [marketing, setMarketing] = useState(false);
   const [website, setWebsite] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +45,7 @@ export function CheckoutForm({
         const response = await fetch("/api/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ property, checkIn, checkOut, guests, name, email, phone, arrival, note, accepted, website }),
+          body: JSON.stringify({ property, checkIn, checkOut, guests, name, email, phone, arrival, note, accepted, marketing, website }),
         });
         const data = (await response.json()) as { url?: string; error?: string };
         if (!response.ok || !data.url) {
@@ -146,8 +147,23 @@ export function CheckoutForm({
 
       <label className="checkout-accept">
         <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} required />
-        <span>I accept the house rules and the cancellation policy below.</span>
+        <span>
+          I accept the house rules and the cancellation policy below, and I’ve read the{" "}
+          <a href="/privacy" target="_blank" rel="noreferrer">
+            privacy notice
+          </a>
+          .
+        </span>
       </label>
+
+      {paymentsOn ? (
+        <label className="checkout-accept is-optional">
+          <input type="checkbox" checked={marketing} onChange={(e) => setMarketing(e.target.checked)} />
+          <span>
+            {OFFERS_LINE} <small>Optional.</small>
+          </span>
+        </label>
+      ) : null}
 
       {error ? <p className="reserve-error">{error}</p> : null}
 

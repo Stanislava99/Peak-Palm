@@ -19,6 +19,8 @@ export const isTestSite = () => appEnv() === "test";
 /** The official bookings inbox. */
 export const OFFICIAL_EMAIL = "regalo1996@yahoo.com";
 const TEST_EXTRA = ["stanislava.ilievska@gmail.com"];
+/** Extra people who can sign in to /admin on the TEST site only. */
+const TEST_ADMINS = ["kaja.lazova@hotmail.com"];
 
 function list(value: string | undefined) {
   return (value ?? "")
@@ -38,7 +40,7 @@ export function notifyEmails(): string[] {
 export function adminEmails(): string[] {
   const configured = list(process.env.ADMIN_EMAILS);
   if (configured.length) return configured;
-  return [OFFICIAL_EMAIL, ...TEST_EXTRA];
+  return isTestSite() ? [OFFICIAL_EMAIL, ...TEST_EXTRA, ...TEST_ADMINS] : [OFFICIAL_EMAIL, ...TEST_EXTRA];
 }
 
 /** Where guests reply to. */
@@ -53,7 +55,7 @@ export function contactEmail() {
  */
 export function businessDetails() {
   return {
-    tradingName: "Peak & Palm Villas",
+    tradingName: "Sea & Ski Villas",
     legalName: process.env.BUSINESS_LEGAL_NAME?.trim() || "",
     address: process.env.BUSINESS_ADDRESS?.trim() || "",
     taxId: process.env.BUSINESS_TAX_ID?.trim() || "",

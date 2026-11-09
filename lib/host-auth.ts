@@ -1,3 +1,4 @@
+import { dbConfigured } from "./db";
 import { createHmac, hkdfSync, randomBytes, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 
@@ -139,7 +140,11 @@ export function createLoginToken(email: string) {
   return `${payload}.${sign(payload)}`;
 }
 
-export function consumeLoginToken(token: string): string | null {
+/**
+ * Checks a sign-in link and marks it used. With the database the "used" mark is shared by every
+ * server instance (a link works exactly once); without it, it is remembered per instance.
+ */
+export async function consumeLoginToken(token: string): Promise<string | null> {
   const parts = token.split(".");
   if (parts.length !== 5 || parts[0] !== "l") return null;
   const payload = parts.slice(0, 4).join(".");
@@ -147,6 +152,15 @@ export function consumeLoginToken(token: string): string | null {
   const exp = Number(parts[1]) * 1000;
   if (exp <= Date.now()) return null;
   if (usedLinks.has(parts[2])) return null;
+  if (dbConfigured()) {
+    const { q } = await import("./db");
+    const rows = await q("insert into login_tokens (nonce, email, expires_at) values ($1, $2, $3) on conflict do nothing returning nonce", [
+      parts[2],
+      unb64(parts[3]),
+      new Date(exp),
+    ]);
+    if (!rows.length) return null;
+  }
   usedLinks.set(parts[2], exp);
   for (const [nonce, until] of usedLinks) if (until < Date.now()) usedLinks.delete(nonce);
   return unb64(parts[3]);

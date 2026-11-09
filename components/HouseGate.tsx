@@ -30,7 +30,7 @@ export function HouseGate() {
         <Image src="/photos/01-exterior.jpg" alt="" fill priority sizes="100vw" />
         <span className="gate-shade" />
         <span className="gate-copy">
-          <em>The Peak · Winter</em>
+          <em>Ski · Winter</em>
           <strong>Villa Kaja</strong>
           <span>Bansko, Bulgaria · a private chalet five minutes from the gondola</span>
           <i>
@@ -42,7 +42,7 @@ export function HouseGate() {
         <Image src="/photos/janis/01-cover.jpg" alt="" fill priority sizes="100vw" />
         <span className="gate-shade" />
         <span className="gate-copy">
-          <em>The Palm · Summer</em>
+          <em>Sea · Summer</em>
           <strong>Jani’s Beach House</strong>
           <span>Neoi Epivates, Greece · about 30 metres from the sand</span>
           <i>

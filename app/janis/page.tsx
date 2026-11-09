@@ -7,6 +7,7 @@ import { Header } from "@/components/Header";
 import { Icon, type IconName } from "@/components/Icons";
 import { janisPhotos, janisRooms } from "@/lib/janis-photos";
 import { fetchAirbnbReviews } from "@/lib/reviews";
+import { publishedDirectReviews } from "@/lib/guest-reviews";
 import { fetchAirbnbRating, type AirbnbRating, type CalendarDay } from "@/lib/listings";
 import { getProperty } from "@/lib/properties";
 import { calendarWithSources, type CalendarSources } from "@/lib/reservations";
@@ -68,7 +69,7 @@ const categories: Array<[keyof AirbnbRating["categories"], string]> = [
 export default async function JanisPage() {
   const [rating, reviews, calendar] = await Promise.all([
     fetchAirbnbRating("janis"),
-    fetchAirbnbReviews("janis"),
+    Promise.all([publishedDirectReviews("janis"), fetchAirbnbReviews("janis")]).then(([direct, airbnb]) => [...direct, ...airbnb]),
     calendarWithSources("janis").then(
       ({ days, sources }) => ({ days, sources, error: null as string | null }),
       () => ({
@@ -81,13 +82,13 @@ export default async function JanisPage() {
 
   return (
     <>
-      <Header house="Jani’s Beach House" sibling={{ href: "/villa-kaja", label: "The Peak · Bansko" }} />
+      <Header house="Jani’s Beach House" sibling={{ href: "/villa-kaja", label: "Ski · Bansko" }} />
       <main id="top">
         <section className="hero">
           <Image src="/photos/janis/01-cover.jpg" alt="The path from Jani’s Beach House down to the sea, the cover photo from the Airbnb listing" fill priority sizes="100vw" />
           <div className="hero-shade" />
           <div className="hero-copy">
-            <p className="eyebrow light">The Palm · Neoi Epivates · Thermaikos</p>
+            <p className="eyebrow light">Sea · Neoi Epivates · Thermaikos</p>
             <h1 className="hero-title">Jani’s Beach House</h1>
             <p className="hero-sub">A beach house, a short walk from the sand.</p>
             <p className="lede">
@@ -189,7 +190,7 @@ export default async function JanisPage() {
           initialDays={calendar.days}
           initialError={calendar.error}
           initialSources={calendar.sources}
-          paymentsOn={paymentsEnabled()}
+          paymentsOn={paymentsEnabled("janis")}
         />
 
         <MeetHosts property="janis" house="Jani’s Beach House" reviewCount={rating.count} communication={rating.categories.communication} />

@@ -1,4 +1,4 @@
-# Payment security — Peak & Palm Villas
+# Payment security — Sea & Ski Villas
 
 ## How payments are protected (built into the site)
 
@@ -13,9 +13,10 @@ are ever received, stored or logged here.
 | Amounts | Prices are calculated **on the server** from the live Airbnb total; nothing the browser sends can change the amount. Implausible prices (below €60/night Villa Kaja, €40/night Jani’s) are refused. |
 | Money flow | The 50% deposit is paid at checkout; the booking stays pending until the host confirms on `/admin`. Declining refunds the deposit in full automatically. |
 | Double charging | Stripe idempotency keys on refunds. Only the 50% deposit is paid by card; the balance is paid in cash at check-in, so no card is saved on file. |
-| Double booking | Dates are re-checked against Airbnb, Booking.com and existing holds right before payment; accepting a booking that overlaps a confirmed one is refused. |
-| Card-testing bots | Rate limits (6 checkout attempts / 10 min, 20 / day per address), hidden honeypot field, same-site checks, 3-D Secure. |
-| Admin page `/admin` | One-time email sign-in link (15 min, single use, only for the listed admin addresses) + 6-digit authenticator code (TOTP); HMAC-signed session cookie (`__Host-`, Secure, HttpOnly, SameSite=Strict), 12-hour expiry; rate-limited; sign-ins logged. |
+| Double booking | Dates are re-checked against Airbnb, Booking.com and paid bookings right before payment. With the database, the nights are held atomically while a guest pays (a lock per house), so two guests can never pay for the same nights; accepting a booking that overlaps a confirmed one is refused. |
+| Guest data | Kept in a Neon Postgres database per site (EU, Frankfurt), encrypted in transit (TLS) and at rest; only the server can reach it (`DATABASE_URL` is a sensitive Vercel setting). Stripe keeps a backup copy on each payment. |
+| Card-testing bots | Rate limits (6 checkout attempts / 10 min, 20 / day per address; counted in the database across all server instances), hidden honeypot field, same-site checks, 3-D Secure. |
+| Admin page `/admin` | One-time email sign-in link (15 min, single use across all server instances, only for the listed admin addresses) + 6-digit authenticator code (TOTP); HMAC-signed session cookie (`__Host-`, Secure, HttpOnly, SameSite=Strict), 12-hour expiry; rate-limited; sign-ins logged. |
 | Cross-site attacks | Every state-changing API checks the request comes from this site (CSRF). |
 | Browser hardening | Strict Content-Security-Policy (nonce-based on checkout and host pages, no third-party scripts anywhere), HSTS with preload, no framing (clickjacking), nosniff, strict referrer policy, Permissions-Policy, private pages not cached or indexed. |
 | Secrets | Stripe key is server-only (never sent to the browser); `.env*` files are git-ignored. |

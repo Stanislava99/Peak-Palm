@@ -9,7 +9,7 @@ import "@fontsource-variable/jost/wght.css";
 import "./globals.css";
 
 const description =
-  "Peak & Palm Villas: two private holiday houses from one host. Villa Kaja is a chalet in Bansko, Bulgaria, by the gondola. Jani’s Beach House is in Neoi Epivates, Greece, about 30 metres from the beach.";
+  "Sea & Ski Villas: two private holiday houses from one host. Villa Kaja is a chalet in Bansko, Bulgaria, by the gondola. Jani’s Beach House is in Neoi Epivates, Greece, about 30 metres from the beach.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: brand.colors.pine,
+  themeColor: brand.colors.navy,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

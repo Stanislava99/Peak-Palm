@@ -11,7 +11,7 @@ export function Footer({ address }: { address?: string }) {
       </div>
       <div className="footer-cols">
         <div>
-          <h4>The Peak</h4>
+          <h4>Ski · Bansko</h4>
           <a href="/villa-kaja">Villa Kaja</a>
           <span>Bansko, Bulgaria</span>
           <a href={properties.kaja.airbnbUrl} target="_blank" rel="noreferrer">
@@ -19,7 +19,7 @@ export function Footer({ address }: { address?: string }) {
           </a>
         </div>
         <div>
-          <h4>The Palm</h4>
+          <h4>Sea · Greece</h4>
           <a href="/janis">Jani’s Beach House</a>
           <span>Neoi Epivates, Greece</span>
           <a href={properties.janis.airbnbUrl} target="_blank" rel="noreferrer">
@@ -38,7 +38,9 @@ export function Footer({ address }: { address?: string }) {
           © {new Date().getFullYear()} {brand.name}
           {address ? ` · ${address}` : ""}
         </span>
-        <span>Hosted by {brand.host}</span>
+        <span>
+          Hosted by {brand.host} · <a href="/privacy">Privacy</a>
+        </span>
       </div>
     </footer>
   );

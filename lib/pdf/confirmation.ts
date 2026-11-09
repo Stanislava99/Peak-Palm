@@ -8,12 +8,12 @@ import { businessDetails, isTestSite } from "../site-config";
 import { formatLong, nightsBetween } from "../stay";
 import { CORMORANT_600, LOGO_LIGHT_PNG, NOTO_400, NOTO_600 } from "./assets";
 
-const PINE = rgb(0x1f / 255, 0x3a / 255, 0x30 / 255);
-const GOLD = rgb(0xb8 / 255, 0x97 / 255, 0x5a / 255);
-const INK = rgb(0x1b / 255, 0x2a / 255, 0x24 / 255);
-const MUTED = rgb(0x5b / 255, 0x61 / 255, 0x59 / 255);
+const PINE = rgb(0x12 / 255, 0x3b / 255, 0x5a / 255);
+const GOLD = rgb(0xc8 / 255, 0xa4 / 255, 0x6d / 255);
+const INK = rgb(0x10 / 255, 0x26 / 255, 0x3a / 255);
+const MUTED = rgb(0x56 / 255, 0x64 / 255, 0x72 / 255);
 const LINE = rgb(0xe3 / 255, 0xdc / 255, 0xcf / 255);
-const SAND = rgb(0xf3 / 255, 0xee / 255, 0xe5 / 255);
+const SAND = rgb(0xf7 / 255, 0xf3 / 255, 0xea / 255);
 const RED = rgb(0xb4 / 255, 0x41 / 255, 0x2f / 255);
 
 const HOUSES = {

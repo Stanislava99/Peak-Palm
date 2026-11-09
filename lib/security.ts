@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
+import { dbConfigured } from "./db";
 
 /**
  * Request-level protections shared by every API route that changes something.
  *
  * - sameOrigin: blocks cross-site requests (CSRF). Browsers always send Origin on POST.
- * - rateLimit: slows down card-testing bots and password guessing. In-memory, so it is per
- *   server instance; add a Vercel Firewall rate-limit rule on /api/* for a global limit.
+ * - rateLimit: slows down card-testing bots and password guessing. In memory per server instance,
+ *   and, with the database, also counted across all instances (fixed windows in rate_limits).
  */
 
 export function sameOrigin(request: Request): boolean {
@@ -48,12 +49,29 @@ export function deny(message: string, status: number) {
   return NextResponse.json({ error: message }, { status, headers: NO_STORE });
 }
 
+/** Shared count across server instances. Fails open (a database hiccup never blocks guests). */
+async function sharedRateLimit(key: string, limit: number, windowMs: number): Promise<boolean> {
+  if (!dbConfigured()) return true;
+  try {
+    const { q } = await import("./db");
+    const start = new Date(Math.floor(Date.now() / windowMs) * windowMs);
+    const rows = await q<{ count: number }>(
+      "insert into rate_limits (key, window_start, count) values ($1, $2, 1) on conflict (key, window_start) do update set count = rate_limits.count + 1 returning count",
+      [key, start],
+    );
+    return (rows[0]?.count ?? 0) <= limit;
+  } catch {
+    return true;
+  }
+}
+
 /** Common guard for state-changing routes. Returns a response to send, or null to continue. */
-export function guard(request: Request, scope: string, limits: Array<[number, number]>): NextResponse | null {
+export async function guard(request: Request, scope: string, limits: Array<[number, number]>): Promise<NextResponse | null> {
   if (!sameOrigin(request)) return deny("This request was blocked.", 403);
   const ip = clientIp(request);
   for (const [limit, windowMs] of limits) {
-    if (!rateLimit(`${scope}:${windowMs}:${ip}`, limit, windowMs)) {
+    const key = `${scope}:${windowMs}:${ip}`;
+    if (!rateLimit(key, limit, windowMs) || !(await sharedRateLimit(key, limit, windowMs))) {
       return deny("Too many attempts. Please wait a few minutes and try again.", 429);
     }
   }

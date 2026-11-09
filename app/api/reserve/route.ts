@@ -28,7 +28,7 @@ const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
-  const blocked = guard(request, "reserve", [[5, 10 * 60_000], [20, 24 * 3600_000]]);
+  const blocked = await guard(request, "reserve", [[5, 10 * 60_000], [20, 24 * 3600_000]]);
   if (blocked) return blocked;
   const body = (await request.json().catch(() => null)) as Payload | null;
   if (!body) {

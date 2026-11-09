@@ -5,6 +5,8 @@ import { getProperty, isPropertyId, type PropertyId } from "@/lib/properties";
 import { calendarWithSources } from "@/lib/reservations";
 import { evaluateStay, formatLong } from "@/lib/stay";
 import { getStripe, usingMockStripe } from "@/lib/stripe";
+import { dbConfigured } from "@/lib/db";
+import { HOLD_MINUTES, attachSession, createHold, releaseHold } from "@/lib/booking-store";
 import { NO_STORE, cleanText, guard } from "@/lib/security";
 import { NextResponse } from "next/server";
 
@@ -19,6 +21,8 @@ type Payload = {
   arrival?: string;
   note?: string;
   accepted?: boolean;
+  /** Optional, unticked by default: "send me occasional offers". */
+  marketing?: boolean;
   /** Honeypot: hidden field real guests never fill in. */
   website?: string;
 };
@@ -32,20 +36,22 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
   // Card-testing bots hammer checkout endpoints: few attempts per address, and same-site only.
-  const blocked = guard(request, "checkout", [
+  const blocked = await guard(request, "checkout", [
     [6, 10 * 60_000],
     [20, 24 * 3600_000],
   ]);
   if (blocked) return blocked;
-  const stripe = getStripe();
-  if (!stripe) {
-    return NextResponse.json({ error: "Online payment is not switched on yet." }, { status: 503 });
-  }
   const body = (await request.json().catch(() => null)) as Payload | null;
   if (!body) return NextResponse.json({ error: "The booking could not be read." }, { status: 400 });
   if (body.website) return NextResponse.json({ error: "The booking could not be read." }, { status: 400 });
+  if (!isPropertyId(body.property)) return NextResponse.json({ error: "Choose a house first." }, { status: 400 });
 
-  const property: PropertyId = isPropertyId(body.property) ? body.property : "kaja";
+  const property: PropertyId = body.property;
+  // Each house is paid into its own Stripe account (or a shared one).
+  const stripe = getStripe(property);
+  if (!stripe) {
+    return NextResponse.json({ error: "Online payment is not switched on yet." }, { status: 503 });
+  }
   const house = getProperty(property);
   const checkIn = body.checkIn ?? "";
   const checkOut = body.checkOut ?? "";
@@ -110,6 +116,19 @@ export async function POST(request: Request) {
     balance,
   });
 
+  // With the database: hold the dates while the guest pays (atomic per house, so two guests
+  // can't pay for the same nights on the live site).
+  const useDb = dbConfigured();
+  if (useDb) {
+    try {
+      const held = await createHold({ ref, property, checkIn, checkOut, guests, name, email, phone, arrival, note, airbnbTotal: quote.airbnbTotal, directTotal: quote.directTotal, deposit, balance, marketing: body.marketing === true });
+      if (!held.ok) return NextResponse.json({ error: held.reason }, { status: 409 });
+    } catch (error) {
+      console.error("Could not save the booking hold", (error as Error).message);
+      return NextResponse.json({ error: "Bookings are briefly unavailable. Please try again in a minute." }, { status: 503 });
+    }
+  }
+
   const origin = new URL(request.headers.get("origin")!).origin;
   const back = new URLSearchParams({ property, checkIn, checkOut, guests: String(guests) });
   const stayLine = `${formatLong(checkIn)} – ${formatLong(checkOut)} · ${quote.nights} night${quote.nights === 1 ? "" : "s"} · ${guests} guest${guests === 1 ? "" : "s"}`;
@@ -145,16 +164,19 @@ export async function POST(request: Request) {
           message: `You pay the 50% deposit now and the rest in cash at check-in. The host confirms your booking ${HOST_REPLY}; if the dates can’t be confirmed, the deposit is refunded in full.`,
         },
       },
-      expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
+      expires_at: Math.floor(Date.now() / 1000) + (HOLD_MINUTES - 2) * 60,
       success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/checkout?${back}`,
     });
+    if (useDb) await attachSession(ref, session.id);
     if (!session.url?.startsWith("https://checkout.stripe.com/") && !usingMockStripe()) {
+      if (useDb) await releaseHold(ref).catch(() => {});
       return NextResponse.json({ error: "The payment page could not be opened." }, { status: 502 });
     }
     return NextResponse.json({ url: session.url, ref }, { headers: NO_STORE });
   } catch (error) {
     console.error("Stripe checkout failed", error);
+    if (useDb) await releaseHold(ref).catch(() => {});
     return NextResponse.json({ error: "The payment page could not be opened. Please try again." }, { status: 502 });
   }
 }

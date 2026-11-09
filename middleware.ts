@@ -7,7 +7,7 @@ import { NextResponse, type NextRequest } from "next/server";
  *   bootstrap scripts; there are still no third-party scripts anywhere on the site.
  * Card details are only ever entered on Stripe’s own page (checkout.stripe.com).
  */
-const SENSITIVE = /^\/(checkout|host|admin)(\/|$)/;
+const SENSITIVE = /^\/(checkout|host|admin|review|unsubscribe)(\/|$)/;
 const dev = process.env.NODE_ENV === "development";
 
 function policy(scripts: string) {

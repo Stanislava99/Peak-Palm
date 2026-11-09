@@ -21,14 +21,14 @@ function rows(items: Row[]) {
 ${items
   .map(
     ([k, v], i) =>
-      `<tr><td style="padding:10px 14px;color:#6b6f66;font-size:13px;${i ? "border-top:1px solid #eee7da;" : ""}width:38%">${esc(k)}</td><td style="padding:10px 14px;color:#1b2a24;font-size:14px;${i ? "border-top:1px solid #eee7da;" : ""}">${v}</td></tr>`,
+      `<tr><td style="padding:10px 14px;color:#5d6b78;font-size:13px;${i ? "border-top:1px solid #eee7da;" : ""}width:38%">${esc(k)}</td><td style="padding:10px 14px;color:#10263a;font-size:14px;${i ? "border-top:1px solid #eee7da;" : ""}">${v}</td></tr>`,
   )
   .join("\n")}
 </table>`;
 }
 
 function button(href: string, label: string) {
-  return `<p style="margin:22px 0"><a href="${esc(href)}" style="display:inline-block;background:#1f3a30;color:#f3eee5;text-decoration:none;padding:13px 22px;border-radius:999px;font-weight:600;font-size:15px">${esc(label)}</a></p>`;
+  return `<p style="margin:22px 0"><a href="${esc(href)}" style="display:inline-block;background:#123b5a;color:#f7f3ea;text-decoration:none;padding:13px 22px;border-radius:999px;font-weight:600;font-size:15px">${esc(label)}</a></p>`;
 }
 
 function layout(title: string, body: string) {
@@ -36,20 +36,20 @@ function layout(title: string, body: string) {
   const test = isTestSite()
     ? `<div style="background:#b4412f;color:#fff;text-align:center;font-size:12px;padding:6px;letter-spacing:.08em">TEST SITE: no real payments</div>`
     : "";
-  return `<!doctype html><html><body style="margin:0;background:#f3eee5;font-family:Helvetica,Arial,sans-serif;color:#1b2a24">
+  return `<!doctype html><html><body style="margin:0;background:#f7f3ea;font-family:Helvetica,Arial,sans-serif;color:#10263a">
 ${test}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3eee5;padding:24px 12px"><tr><td align="center">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fbf9f5;border-radius:18px;overflow:hidden;border:1px solid #e3dccf">
-<tr><td style="background:#1f3a30;padding:22px 28px;text-align:center">
-  <img src="${esc(site)}/brand/logo-light-email.png" width="220" alt="Peak &amp; Palm Villas" style="display:inline-block;border:0;max-width:220px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f3ea;padding:24px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fdfbf6;border-radius:18px;overflow:hidden;border:1px solid #e3dccf">
+<tr><td style="background:#123b5a;padding:22px 28px;text-align:center">
+  <img src="${esc(site)}/brand/logo-light-email.png" width="220" alt="Sea &amp; Ski Villas" style="display:inline-block;border:0;max-width:220px">
 </td></tr>
 <tr><td style="padding:28px">
-  <h1 style="margin:0 0 12px;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:26px;color:#1f3a30">${esc(title)}</h1>
+  <h1 style="margin:0 0 12px;font-family:Georgia,'Times New Roman',serif;font-weight:normal;font-size:26px;color:#123b5a">${esc(title)}</h1>
   ${body}
 </td></tr>
-<tr><td style="padding:18px 28px;background:#efe8db;color:#6b6f66;font-size:12px;line-height:1.5">
+<tr><td style="padding:18px 28px;background:#f1eadd;color:#5d6b78;font-size:12px;line-height:1.5">
   ${esc(brand.name)} · ${esc(brand.tagline)}<br>
-  Questions? Reply to this email or write to <a href="mailto:${esc(contactEmail())}" style="color:#1f3a30">${esc(contactEmail())}</a>.
+  Questions? Reply to this email or write to <a href="mailto:${esc(contactEmail())}" style="color:#123b5a">${esc(contactEmail())}</a>.
 </td></tr>
 </table></td></tr></table></body></html>`;
 }
@@ -69,7 +69,7 @@ function stayRows(b: Booking): Row[] {
 
 function moneyRows(b: Booking, state: "held" | "deposit-paid" | "paid"): Row[] {
   return [
-    ["Direct price", `<b>${formatMoney(b.directTotal)}</b>${b.airbnbTotal ? ` <span style="color:#6b6f66">(Airbnb: <s>${formatMoney(b.airbnbTotal)}</s>)</span>` : ""}`],
+    ["Direct price", `<b>${formatMoney(b.directTotal)}</b>${b.airbnbTotal ? ` <span style="color:#5d6b78">(Airbnb: <s>${formatMoney(b.airbnbTotal)}</s>)</span>` : ""}`],
     ["Deposit", `${formatMoney(b.deposit)} · ${state === "held" ? "held on card, not charged yet" : "paid"}`],
     ["Balance", `${formatMoney(b.balance)} · ${state === "paid" ? "paid in cash" : BALANCE_WHEN}`],
   ];
@@ -113,13 +113,13 @@ export function adminEvent(b: Booking, what: string) {
 
 export function adminLoginLink(url: string) {
   return {
-    subject: "Your sign-in link for the Peak & Palm admin page",
+    subject: "Your sign-in link for the Sea & Ski admin page",
     html: layout(
       "Sign in to the admin page",
       p("Use this button within 15 minutes. If you didn’t ask for it, ignore this email: nobody can sign in without it.") +
         button(url, "Sign in"),
     ),
-    text: `Sign in to the Peak & Palm admin page (valid 15 minutes):\n${url}\n\nIf you didn't ask for this, ignore it.`,
+    text: `Sign in to the Sea & Ski admin page (valid 15 minutes):\n${url}\n\nIf you didn't ask for this, ignore it.`,
   };
 }
 
@@ -156,7 +156,7 @@ export function guestDepositReceived(b: Booking) {
       `Thank you, ${first}`,
       p(`We’ve received your deposit of <b>${formatMoney(b.deposit)}</b>. Your dates at ${esc(HOUSE_NAMES[b.property])} are now <b>reserved for you</b> while ${esc(brand.host)} confirms the booking, ${esc(HOST_REPLY)}.`) +
         rows([...stayRows(b), ...moneyRows(b, "deposit-paid")]) +
-        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 14px"><tr><td style="background:#efe8db;border-radius:12px;padding:14px 16px;font-size:14px;line-height:1.55;color:#1b2a24">
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 14px"><tr><td style="background:#f1eadd;border-radius:12px;padding:14px 16px;font-size:14px;line-height:1.55;color:#10263a">
 <b>What happens next</b><br>
 1. ${esc(brand.host)} checks the dates and confirms ${esc(HOST_REPLY)}.<br>
 2. You receive your booking confirmation by email, with a PDF and the arrival details.<br>
@@ -246,5 +246,45 @@ export function guestRequestAck(data: { name: string; house: string; checkIn: st
         ]),
     ),
     text: `Thanks! We've received your booking request ${data.ref} for ${data.house}, ${data.checkIn} → ${data.checkOut}. The host will email you to confirm and send a payment link.`,
+  };
+}
+
+/* ── Reviews from direct guests ── */
+
+export function guestReviewRequest(b: Booking, link: string) {
+  const first = b.name.split(" ")[0];
+  const stars = [5, 4, 3, 2, 1]
+    .map(
+      (n) =>
+        `<a href="${esc(`${link}&r=${n}`)}" style="display:inline-block;margin:0 3px;padding:8px 10px;border-radius:10px;background:#f1eadd;color:#c8a46d;text-decoration:none;font-size:20px;line-height:1" title="${n} star${n === 1 ? "" : "s"}">${"★".repeat(n)}</a>`,
+    )
+    .join("<br>");
+  return {
+    subject: `How was your stay at ${HOUSE_NAMES[b.property]}?`,
+    html: layout(
+      `Thank you for staying with us, ${esc(first)}`,
+      p(`We hope you had a wonderful time at ${esc(HOUSE_NAMES[b.property])}. Would you share a few words about your stay? It takes a minute and helps other guests who book with us directly.`) +
+        `<p style="margin:18px 0 6px;font-size:14px;color:#5d6b78">Tap a rating to start:</p><p style="margin:0 0 18px;line-height:2.2">${stars}</p>` +
+        button(link, "Write a review") +
+        p(`<span style="color:#5d6b78;font-size:13px">Your review appears on our website with your first name and the month of your stay. This personal link works for 120 days.</span>`),
+    ),
+    text: `Thank you for staying at ${HOUSE_NAMES[b.property]}, ${first}! Would you share a few words about your stay? ${link}\n\nYour review appears on our website with your first name and the month of your stay.`,
+  };
+}
+
+export function adminNewReview(b: Booking, review: { name: string; rating: number; text: string }) {
+  return {
+    subject: `New guest review (${review.rating}★) · ${HOUSE_NAMES[b.property]} · ${b.ref}`,
+    html: layout(
+      "A guest left a review",
+      p(`<b>${esc(review.name)}</b> reviewed their stay at ${esc(HOUSE_NAMES[b.property])}. It isn’t on the website yet: publish it on the admin page.`) +
+        rows([
+          ["Rating", `<span style="color:#c8a46d">${"★".repeat(review.rating)}</span>${"☆".repeat(5 - review.rating)}`],
+          ["Review", esc(review.text).replace(/\n/g, "<br>")],
+          ...stayRows(b),
+        ]) +
+        button(`${getSiteUrl()}/admin#reviews`, "Publish on the admin page"),
+    ),
+    text: `New ${review.rating}-star review from ${review.name} (${HOUSE_NAMES[b.property]}, ${b.ref}):\n\n${review.text}\n\nPublish it: ${getSiteUrl()}/admin#reviews`,
   };
 }

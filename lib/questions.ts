@@ -1,6 +1,5 @@
-import { mkdir, readFile, writeFile } from "fs/promises";
-import path from "path";
 import type { PropertyId } from "./properties";
+import { dbConfigured } from "./db";
 
 export type Question = {
   id: string;
@@ -11,17 +10,9 @@ export type Question = {
   createdAt: string;
 };
 
-const filePath = path.join(process.cwd(), "data", "questions.json");
-
+/** Questions from the website are emailed to the hosts and, with the database, kept in the questions table. */
 export async function saveQuestion(entry: Question) {
-  let current: Question[] = [];
-  try {
-    const raw = await readFile(filePath, "utf8");
-    const parsed = JSON.parse(raw) as Question[];
-    current = Array.isArray(parsed) ? parsed : [];
-  } catch {
-    current = [];
-  }
-  await mkdir(path.dirname(filePath), { recursive: true });
-  await writeFile(filePath, JSON.stringify([entry, ...current], null, 2));
+  if (!dbConfigured()) throw new Error("no database");
+  const { addQuestion } = await import("./booking-store");
+  await addQuestion(entry.property, entry.name, entry.email, entry.message);
 }

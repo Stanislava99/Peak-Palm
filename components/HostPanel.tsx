@@ -150,7 +150,7 @@ export function HostLogout() {
   );
 }
 
-type Action = "accept" | "decline" | "cash-received" | "cash-undo";
+type Action = "accept" | "decline" | "cash-received" | "cash-undo" | "review-request" | "review-publish" | "review-hide" | "resend-emails";
 
 export function HostActions({ id, status, balancePaid }: { id: string; status: string; balancePaid: boolean }) {
   const [busy, setBusy] = useState<Action | null>(null);
@@ -211,6 +211,11 @@ export function HostActions({ id, status, balancePaid }: { id: string; status: s
           {busy === "cash-undo" ? "Saving…" : "Undo cash received"}
         </button>
       ) : null}
+      {status === "pending" || status === "confirmed" ? (
+        <button className="button ghost" type="button" disabled={Boolean(busy)} onClick={() => run("resend-emails", status === "pending" ? "Send the “New booking” and “Deposit received” emails again?" : "Send the confirmation email with the PDF to the guest again?")}>
+          {busy === "resend-emails" ? "Sending…" : "Resend emails"}
+        </button>
+      ) : null}
       {message ? <p className="host-ok">{message}</p> : null}
       {link ? (
         <p className="host-link">
@@ -220,6 +225,52 @@ export function HostActions({ id, status, balancePaid }: { id: string; status: s
           </button>
         </p>
       ) : null}
+      {error ? <p className="reserve-error">{error}</p> : null}
+    </div>
+  );
+}
+
+/** Publish / hide a guest review, or (re)send the review request. */
+export function ReviewActions({ id, mode }: { id: string; mode: "request" | "pending" | "published" | "hidden" }) {
+  const [busy, setBusy] = useState<Action | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run(action: Action, confirmText?: string) {
+    if (confirmText && !window.confirm(confirmText)) return;
+    setBusy(action);
+    setError(null);
+    setMessage(null);
+    const response = await fetch("/api/admin/action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, action }),
+    });
+    const data = (await response.json().catch(() => ({}))) as { ok?: boolean; message?: string; error?: string };
+    setBusy(null);
+    if (!response.ok || !data.ok) return setError(data.error ?? "That didn’t work.");
+    setMessage(data.message ?? "Done.");
+    window.setTimeout(() => window.location.reload(), 1200);
+  }
+
+  return (
+    <div className="host-actions">
+      {mode === "request" ? (
+        <button className="button ghost" type="button" disabled={Boolean(busy)} onClick={() => run("review-request", "Email the guest a link to review their stay?")}>
+          {busy === "review-request" ? "Sending…" : "Send review request"}
+        </button>
+      ) : null}
+      {mode === "pending" || mode === "hidden" ? (
+        <button className="button primary" type="button" disabled={Boolean(busy)} onClick={() => run("review-publish")}>
+          {busy === "review-publish" ? "Publishing…" : "Publish on the website"}
+        </button>
+      ) : null}
+      {mode === "pending" || mode === "published" ? (
+        <button className="button ghost" type="button" disabled={Boolean(busy)} onClick={() => run("review-hide", "Keep this review off the website?")}>
+          {busy === "review-hide" ? "Saving…" : mode === "published" ? "Remove from website" : "Don’t publish"}
+        </button>
+      ) : null}
+      {message ? <p className="host-ok">{message}</p> : null}
       {error ? <p className="reserve-error">{error}</p> : null}
     </div>
   );

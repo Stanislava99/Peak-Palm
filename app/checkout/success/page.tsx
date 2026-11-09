@@ -6,9 +6,13 @@ import { bookingFromIntent, forgetBookedNights } from "@/lib/bookings";
 import { brand } from "@/lib/brand";
 import { formatMoney } from "@/lib/pricing";
 import { formatLong } from "@/lib/stay";
-import { getStripe } from "@/lib/stripe";
+import { findSession, paymentsEnabled } from "@/lib/stripe";
 import type { Metadata } from "next";
 import type Stripe from "stripe";
+import { after } from "next/server";
+import { dbConfigured } from "@/lib/db";
+import { markPaid } from "@/lib/booking-store";
+import { notifyDepositPaid } from "@/lib/booking-notify";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Booking received", robots: { index: false, follow: false } };
@@ -17,14 +21,29 @@ const NAMES = { kaja: "Villa Kaja", janis: "Jani’s Beach House" } as const;
 
 export default async function SuccessPage({ searchParams }: { searchParams: Promise<{ session_id?: string }> }) {
   const { session_id: sessionId } = await searchParams;
-  const stripe = getStripe();
   let booking = null;
-  if (stripe && sessionId?.startsWith("cs_")) {
+  if (paymentsEnabled() && sessionId?.startsWith("cs_")) {
     try {
-      const session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ["payment_intent"] });
+      const found = await findSession(sessionId, ["payment_intent"]);
+      if (!found) throw new Error("session not found");
+      const session = found.session;
       const intent = session.payment_intent as Stripe.PaymentIntent | null;
       booking = intent ? bookingFromIntent(intent) : null;
       if (booking) forgetBookedNights(booking.property);
+      // Safety net if Stripe's notification is late or never arrives: record the payment and send
+      // the emails now (each email still goes out only once, whichever request gets there first).
+      if (booking && intent && intent.status === "succeeded" && booking.status === "pending" && dbConfigured()) {
+        const paidIntent = intent;
+        const paidBooking = booking;
+        after(async () => {
+          try {
+            await markPaid(paidIntent);
+            await notifyDepositPaid(found.stripe, paidBooking);
+          } catch (error) {
+            console.warn("Success-page safety net failed", (error as Error).message);
+          }
+        });
+      }
     } catch {
       booking = null;
     }

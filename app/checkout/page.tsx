@@ -92,7 +92,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
           </li>
           <li>
             <span>3</span>
-            {paymentsEnabled() ? "Secure payment" : "Payment after confirmation"}
+            {paymentsEnabled(property) ? "Secure payment" : "Payment after confirmation"}
           </li>
         </ol>
 
@@ -122,7 +122,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                 checkOut={checkOut}
                 guests={guests}
                 deposit={split!.deposit}
-                paymentsOn={paymentsEnabled()}
+                paymentsOn={paymentsEnabled(property)}
                 houseName={house.name}
               />
               <div className="checkout-policies">
@@ -193,10 +193,10 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
               <ol className="summary-schedule">
                 <li>
                   <b>
-                    {paymentsEnabled() ? "Today" : "After the host confirms"} · {formatMoney(split!.deposit)}
+                    {paymentsEnabled(property) ? "Today" : "After the host confirms"} · {formatMoney(split!.deposit)}
                   </b>
                   <span>
-                    {paymentsEnabled()
+                    {paymentsEnabled(property)
                       ? `${DEPOSIT_LABEL} deposit, paid now by card. ${brand.host} confirms your booking ${HOST_REPLY} and emails your confirmation. If the dates can’t be confirmed, you get a full refund.`
                       : `${DEPOSIT_LABEL} deposit, paid through the secure payment link ${brand.host} emails you, ${HOST_REPLY}.`}
                   </span>

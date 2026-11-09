@@ -17,7 +17,7 @@ import { NextResponse } from "next/server";
 type Body = { email?: string; password?: string; code?: string; logout?: boolean };
 
 export async function POST(request: Request) {
-  const blocked = guard(request, "admin-login", [
+  const blocked = await guard(request, "admin-login", [
     [5, 15 * 60_000],
     [20, 24 * 3600_000],
   ]);

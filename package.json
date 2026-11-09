@@ -6,8 +6,8 @@
     "build": "next build",
     "start": "next start",
     "host:2fa": "node scripts/host-2fa.mjs",
-    "deploy:test": "npx --yes vercel@latest deploy --prod --project peak-and-palm-test --create-if-missing",
-    "deploy:prod": "npx --yes vercel@latest deploy --prod --project kajastays"
+    "deploy:test": "npx --yes vercel@latest deploy --prod --project sea-and-ski-test",
+    "deploy:prod": "npx --yes vercel@latest deploy --prod --project sea-and-ski-prod"
   },
   "dependencies": {
     "@fontsource-variable/cormorant-garamond": "^5.3.0",
@@ -17,6 +17,7 @@
     "next": "^15.5.6",
     "nodemailer": "^10.1.7",
     "pdf-lib": "^1.17.1",
+    "pg": "^8.23.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "stripe": "^22.6.2"
@@ -24,6 +25,7 @@
   "devDependencies": {
     "@types/node": "^22.19.0",
     "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
     "typescript": "^5.9.3"

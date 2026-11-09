@@ -48,6 +48,11 @@ export function formatLong(iso: string) {
   }).format(new Date(`${iso}T00:00:00Z`));
 }
 
+/** Today's date at the houses (Bulgaria and Greece share a time zone). */
+export function todayAtHouses(now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Sofia", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
+
 export function evaluateStay(days: CalendarDay[], checkIn: string, checkOut: string): StayVerdict {
   const byDate = new Map(days.map((day) => [day.date, day]));
   const start = byDate.get(checkIn);
@@ -55,6 +60,9 @@ export function evaluateStay(days: CalendarDay[], checkIn: string, checkOut: str
   const nights = nightsBetween(checkIn, checkOut);
   if (!start || !end || nights <= 0) {
     return { ok: false, nights, message: "Choose a check-in and a later check-out." };
+  }
+  if (checkIn < todayAtHouses()) {
+    return { ok: false, nights, message: "Check-in can’t be in the past." };
   }
   if (!start.checkin) {
     return { ok: false, nights, message: "Check-in isn’t possible on that date." };

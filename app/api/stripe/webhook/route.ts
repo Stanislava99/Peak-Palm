@@ -1,9 +1,13 @@
 import { SITE_TAG, bookingFromIntent, forgetBookedNights, type Booking } from "@/lib/bookings";
 import { sendEmail } from "@/lib/email";
-import { HOUSE_NAMES, adminEvent, adminNewRequest, guestBalancePaid, guestDepositReceived } from "@/lib/email-templates";
+import { notifyDepositPaid } from "@/lib/booking-notify";
+import { sendOnce } from "@/lib/send-once";
+import { HOUSE_NAMES, adminEvent, guestBalancePaid } from "@/lib/email-templates";
 import { confirmationPdf } from "@/lib/pdf/confirmation";
 import { notifyEmails } from "@/lib/site-config";
-import { getStripe } from "@/lib/stripe";
+import { findIntent, webhookSecrets } from "@/lib/stripe";
+import { dbConfigured } from "@/lib/db";
+import { markPaid, logEvent } from "@/lib/booking-store";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 
@@ -11,7 +15,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Stripe → site notifications. Every event is verified with STRIPE_WEBHOOK_SECRET.
+ * Stripe → site notifications, from each house’s Stripe account (one endpoint for all).
+ * Every event is verified with that account’s signing secret: STRIPE_WEBHOOK_SECRET_KAJA,
+ * STRIPE_WEBHOOK_SECRET_JANIS, or STRIPE_WEBHOOK_SECRET when both houses share one account.
  * Each email is sent once: a flag is stored on the payment after sending, and Stripe’s retries skip it.
  * Events to enable on the endpoint:
  *   payment_intent.succeeded, payment_intent.payment_failed
@@ -19,27 +25,55 @@ export const dynamic = "force-dynamic";
  * Confirmation/decline emails are sent from the admin page.
  */
 export async function POST(request: Request) {
-  const stripe = getStripe();
-  const secret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
-  if (!stripe || !secret) return NextResponse.json({ error: "Webhooks not configured" }, { status: 503 });
+  const secrets = webhookSecrets().filter((s) => s.stripe);
+  if (!secrets.length) return NextResponse.json({ error: "Webhooks not configured" }, { status: 503 });
 
   const signature = request.headers.get("stripe-signature");
   const body = await request.text();
-  let event: Stripe.Event;
-  try {
-    if (!signature) throw new Error("missing signature");
-    event = stripe.webhooks.constructEvent(body, signature, secret);
-  } catch (error) {
-    console.warn("Rejected webhook", (error as Error).message);
+  // Verify the signature ourselves (works for Snapshot and Thin payloads alike; the SDK's
+  // constructEvent refuses Thin ones), then parse the JSON.
+  let event: Stripe.Event | null = null;
+  for (const { secret, stripe: verifier } of secrets) {
+    try {
+      if (!signature) break;
+      verifier!.webhooks.signature!.verifyHeader(body, signature, secret, 300);
+      event = JSON.parse(body) as Stripe.Event;
+      break;
+    } catch {
+      // not this account's secret; try the next one
+    }
+  }
+  if (!event) {
+    console.warn("Rejected webhook: signature matches none of the configured signing secrets");
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  if (!event.type.startsWith("payment_intent.")) return NextResponse.json({ ok: true });
-  const intent = event.data.object as Stripe.PaymentIntent;
-  if (intent.metadata?.site !== SITE_TAG) return NextResponse.json({ ok: true, ignored: true });
+  // Accept both payload formats Stripe offers for an event destination:
+  //  - Snapshot: { type: "payment_intent.succeeded", data: { object: <PaymentIntent> } }
+  //  - Thin:     { type: "v1.payment_intent.succeeded", related_object: { id, type: "payment_intent" } }
+  const raw = event as unknown as {
+    type: string;
+    data?: { object?: { id?: string; object?: string } };
+    related_object?: { id?: string; type?: string };
+  };
+  const type = raw.type.replace(/^v1\./, "");
+  if (!type.startsWith("payment_intent.")) {
+    console.info("Webhook event ignored (not a payment event):", raw.type);
+    return NextResponse.json({ ok: true, ignored: raw.type });
+  }
+  const id = raw.data?.object?.id ?? (raw.related_object?.type === "payment_intent" ? raw.related_object.id : undefined);
+  if (!id) {
+    console.warn("Webhook payment event without a payment id:", raw.type);
+    return NextResponse.json({ ok: true, ignored: "no payment id" });
+  }
 
   try {
-    await handle(stripe, event.type, intent);
+    // Always read the payment fresh from the account that holds it (works for both formats).
+    const found = await findIntent(id);
+    if (!found) return NextResponse.json({ ok: true, ignored: "payment not in any configured account" });
+    const intent = found.intent;
+    if (intent.metadata?.site !== SITE_TAG) return NextResponse.json({ ok: true, ignored: true });
+    await handle(found.stripe, type, intent);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Webhook handling failed; Stripe will retry", (error as Error).message);
@@ -48,11 +82,8 @@ export async function POST(request: Request) {
 }
 
 async function once(stripe: Stripe, intent: Stripe.PaymentIntent, flag: string, send: () => Promise<boolean>) {
-  const fresh = await stripe.paymentIntents.retrieve(intent.id);
-  if (fresh.metadata?.[flag]) return;
-  const ok = await send();
+  const ok = await sendOnce(stripe, intent.id, flag, send);
   if (!ok) throw new Error(`email for ${flag} not sent`);
-  await stripe.paymentIntents.update(intent.id, { metadata: { [flag]: new Date().toISOString() } });
 }
 
 async function mail(to: string[], content: { subject: string; html: string; text: string }, pdf?: { name: string; data: Buffer }, replyTo?: string) {
@@ -76,13 +107,13 @@ async function handle(stripe: Stripe, type: string, intent: Stripe.PaymentIntent
 
     // Deposit paid → tell the hosts, and tell the guest the money is received and what happens next.
     const paid = type === "payment_intent.succeeded" || (type === "payment_intent.amount_capturable_updated" && intent.status === "requires_capture");
+    if (paid && booking.status === "pending" && dbConfigured()) await markPaid(intent);
+    if (type === "payment_intent.payment_failed" && dbConfigured()) {
+      await logEvent(booking.ref, "stripe", "payment_failed", { reason: intent.last_payment_error?.message ?? null });
+    }
     if (paid && booking.status === "pending") {
-      await once(stripe, intent, "mailedRequest", async () =>
-        mail(notifyEmails(), adminNewRequest(booking), undefined, booking.email),
-      );
-      if (booking.email) {
-        await once(stripe, intent, "mailedGuestPending", async () => mail([booking.email], guestDepositReceived(booking)));
-      }
+      const ok = await notifyDepositPaid(stripe, booking);
+      if (!ok) throw new Error("deposit emails not sent");
     }
     return;
   }
@@ -100,7 +131,7 @@ async function handle(stripe: Stripe, type: string, intent: Stripe.PaymentIntent
         await stripe.paymentIntents.update(deposit.id, { metadata: { balancePaymentIntent: intent.id } });
       }
       await once(stripe, intent, "mailedBalance", async () => {
-        const pdf = { name: `Peak-and-Palm-${booking.ref}-paid.pdf`, data: await confirmationPdf(booking, "paid") };
+        const pdf = { name: `Sea-and-Ski-${booking.ref}-paid.pdf`, data: await confirmationPdf(booking, "paid") };
         const guest = await mail([booking.email], guestBalancePaid(booking), pdf);
         const admin = await mail(notifyEmails(), adminEvent(booking, "Balance received, fully paid"), pdf);
         return guest && admin;

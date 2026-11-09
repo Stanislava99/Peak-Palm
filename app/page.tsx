@@ -42,7 +42,7 @@ type House = {
 
 const houses: House[] = [
   {
-    side: "The Peak",
+    side: "Ski",
     season: "Winter in the mountains",
     name: "Villa Kaja",
     href: "/villa-kaja",
@@ -68,7 +68,7 @@ const houses: House[] = [
     ],
   },
   {
-    side: "The Palm",
+    side: "Sea",
     season: "Summer by the sea",
     name: "Jani’s Beach House",
     href: "/janis",
@@ -98,7 +98,6 @@ const houses: House[] = [
 const motifs: Array<[IconName, string]> = [
   ["mountain", "Mountains"],
   ["sea", "Sea"],
-  ["palm", "Palm"],
   ["ski", "Ski"],
   ["sun", "Sun"],
   ["leaf", "Escape"],
@@ -167,11 +166,11 @@ export default async function HomePage() {
             <em> {brand.tagline}</em>
           </h2>
           <p>
-            Peak &amp; Palm Villas brings together two private holiday houses looked after by {brand.host}. Each is
+            Sea &amp; Ski Villas brings together two private holiday houses looked after by {brand.host}. Each is
             booked as a whole house for one group of family or friends: a chalet by the gondola for the ski season,
             and a beach house on the sand for the summer.
           </p>
-          <ul className="motifs" aria-label="What Peak & Palm is about">
+          <ul className="motifs" aria-label="What Sea & Ski is about">
             {motifs.map(([icon, label]) => (
               <li key={label}>
                 <Icon name={icon} size={30} />
@@ -248,13 +247,13 @@ export default async function HomePage() {
             </li>
             <li>
               <Icon name="chat" size={28} />
-              <h3>Request at {DIRECT_DISCOUNT_LABEL} off</h3>
-              <p>Send your nights and guests here. A request does not book or charge anything.</p>
+              <h3>Pay a 50% deposit</h3>
+              <p>Book at {DIRECT_DISCOUNT_LABEL} below Airbnb and pay half now by card. The rest is paid in cash at check-in.</p>
             </li>
             <li>
               <Icon name="key" size={28} />
               <h3>{brand.host} confirms</h3>
-              <p>The host writes back by email to confirm your stay at the direct price.</p>
+              <p>{brand.host} confirms within 48 hours and emails your confirmation. If she can’t, the deposit is refunded in full.</p>
             </li>
           </ol>
         </section>

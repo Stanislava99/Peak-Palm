@@ -4,7 +4,7 @@ import { contactEmail, isTestSite } from "./site-config";
 /**
  * Sends email through Resend (RESEND_API_KEY) or any SMTP mailbox (SMTP_HOST/PORT/USER/PASS),
  * e.g. Gmail or Yahoo with an app password. Always over TLS.
- * EMAIL_FROM sets the sender, e.g. "Peak & Palm Villas <bookings@peakandpalmvillas.com>".
+ * EMAIL_FROM sets the sender, e.g. "Sea & Ski Villas <bookings@seaandskivillas.com>".
  */
 export type Attachment = { filename: string; content: Buffer; contentType?: string };
 export type Email = {
@@ -24,7 +24,7 @@ function sender() {
   const explicit = process.env.EMAIL_FROM?.trim();
   if (explicit) return explicit;
   const user = process.env.SMTP_USER?.trim();
-  return user ? `Peak & Palm Villas <${user}>` : "Peak & Palm Villas <onboarding@resend.dev>";
+  return user ? `Sea & Ski Villas <${user}>` : "Sea & Ski Villas <onboarding@resend.dev>";
 }
 
 const oneLine = (value: string) => value.replace(/[\r\n]+/g, " ").trim();

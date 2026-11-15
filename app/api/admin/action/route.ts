@@ -172,7 +172,7 @@ export async function POST(request: Request) {
         metadata: { balanceCash: `${new Date().toISOString()} ${admin}`.slice(0, 480) },
       });
       if (useDb) await setCash(booking.ref, admin);
-      return NextResponse.json({ ok: true, message: `Balance of ${booking.balance} € marked as received in cash.` });
+      return NextResponse.json({ ok: true, message: `Balance of ${booking.balance} € marked as received.` });
     }
   } catch (error) {
     console.error("Host action failed", error);

@@ -4,10 +4,11 @@ import { NextResponse, type NextRequest } from "next/server";
  * Content Security Policy.
  * - Checkout, confirmation and host pages: strict nonce-based policy (no inline scripts at all).
  * - Other pages are statically generated, so they keep 'unsafe-inline' for Next.js’s own
- *   bootstrap scripts; there are still no third-party scripts anywhere on the site.
+ *   bootstrap scripts. The only other script is the Umami analytics tracker on the live site, which is
+ *   served from this site's own /stats/ path (see next.config.ts), so 'self' covers it.
  * Card details are only ever entered on Stripe’s own page (checkout.stripe.com).
  */
-const SENSITIVE = /^\/(checkout|host|admin|review|unsubscribe)(\/|$)/;
+const SENSITIVE = /^\/(checkout|host|admin|review|unsubscribe|cancel)(\/|$)/;
 const dev = process.env.NODE_ENV === "development";
 
 function policy(scripts: string) {
@@ -52,7 +53,7 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      source: "/((?!_next/static|_next/image|photos/|brand/|icon.svg|apple-icon.png|robots.txt|sitemap.xml).*)",
+      source: "/((?!_next/static|_next/image|stats/|photos/|brand/|icon.svg|apple-icon.png|robots.txt|sitemap.xml).*)",
       missing: [{ type: "header", key: "next-router-prefetch" }],
     },
   ],

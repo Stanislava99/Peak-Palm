@@ -3,6 +3,7 @@ import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { Icon } from "@/components/Icons";
 import {
+  CANCELLATION_INTRO,
   CANCELLATION_POLICY,
   DEPOSIT_LABEL,
   HOST_REPLY,
@@ -10,7 +11,8 @@ import {
   splitPayment,
 } from "@/lib/booking-config";
 import { brand } from "@/lib/brand";
-import { DIRECT_DISCOUNT_LABEL, fetchStayQuote, formatMoney } from "@/lib/pricing";
+import { DIRECT_DISCOUNT_LABEL, formatMoney } from "@/lib/pricing";
+import { quoteStay } from "@/lib/stay-quote";
 import { getProperty, isPropertyId, type PropertyId } from "@/lib/properties";
 import { calendarWithSources } from "@/lib/reservations";
 import { evaluateStay, formatLong } from "@/lib/stay";
@@ -63,7 +65,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
   const [calendar, priced] = valid
     ? await Promise.all([
         calendarWithSources(property).catch(() => null),
-        fetchStayQuote(property, checkIn, checkOut, guests),
+        quoteStay(property, checkIn, checkOut, guests),
       ])
     : [null, null];
   const verdict = calendar ? evaluateStay(calendar.days, checkIn, checkOut) : null;
@@ -102,7 +104,9 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
           </a>
           <h1>Book {house.name}</h1>
           <p>
-            You’re booking direct with the host, {DIRECT_DISCOUNT_LABEL} below the Airbnb price.
+            {quote?.source === "price-list"
+              ? "You’re booking direct with the host."
+              : `You’re booking direct with the host, ${DIRECT_DISCOUNT_LABEL} below booking platforms.`}
           </p>
         </div>
 
@@ -128,6 +132,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
               <div className="checkout-policies">
                 <div>
                   <h3>Cancellation</h3>
+                  <p className="checkout-policy-intro">{CANCELLATION_INTRO}</p>
                   <ul>
                     {CANCELLATION_POLICY.map((line) => (
                       <li key={line}>{line}</li>
@@ -175,10 +180,12 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                 </div>
               </dl>
               <div className="summary-price">
-                <div className="price-row airbnb">
-                  <span>Same dates on Airbnb</span>
-                  <s>{formatMoney(quote!.airbnbTotal)}</s>
-                </div>
+                {quote!.airbnbTotal !== null ? (
+                  <div className="price-row airbnb">
+                    <span>Same dates on booking platforms</span>
+                    <s>{formatMoney(quote!.airbnbTotal)}</s>
+                  </div>
+                ) : null}
                 <div className="price-row direct">
                   <span>
                     Your direct price
@@ -186,9 +193,11 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                   </span>
                   <strong>{formatMoney(quote!.directTotal)}</strong>
                 </div>
-                <p className="price-save">
-                  You save <b>{formatMoney(quote!.savings)}</b> by booking direct.
-                </p>
+                {quote!.savings ? (
+                  <p className="price-save">
+                    You save <b>{formatMoney(quote!.savings)}</b> by booking direct.
+                  </p>
+                ) : null}
               </div>
               <ol className="summary-schedule">
                 <li>
@@ -203,7 +212,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                 </li>
                 <li>
                   <b>At check-in · {formatMoney(split!.balance)}</b>
-                  <span>The other {DEPOSIT_LABEL}, paid in cash (euros) when you arrive.</span>
+                  <span>The other {DEPOSIT_LABEL}, paid on site, on arrival.</span>
                 </li>
               </ol>
               <p className="summary-secure">

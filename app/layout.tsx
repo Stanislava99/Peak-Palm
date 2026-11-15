@@ -1,6 +1,8 @@
 import { brand } from "@/lib/brand";
 import { getSiteUrl, isPreviewDeployment } from "@/lib/site";
 import { appEnv } from "@/lib/site-config";
+import { analyticsWebsiteId } from "@/lib/analytics";
+import { Analytics } from "@/components/Analytics";
 import type { Metadata, Viewport } from "next";
 import "@fontsource/cinzel/500.css";
 import "@fontsource-variable/cormorant-garamond/wght.css";
@@ -43,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         {children}
+        <Analytics websiteId={analyticsWebsiteId()} />
         {appEnv() === "test" ? (
           <div className="test-badge" role="note">
             <b>TEST SITE</b> · Stripe test mode, no real charges · card 4242 4242 4242 4242

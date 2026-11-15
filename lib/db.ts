@@ -39,7 +39,10 @@ export function dbConfigured() {
 
 function connectionString() {
   const key = databaseEnvKey();
-  return key ? (process.env[key] ?? "").trim() : "";
+  const url = key ? (process.env[key] ?? "").trim() : "";
+  // Neon links say sslmode=require; pg already treats that as full certificate checking but logs a
+  // warning on every cold start. Saying verify-full keeps the same (strict) behaviour, without the noise.
+  return url.replace(/([?&])sslmode=(require|prefer|verify-ca)(?=&|$)/, "$1sslmode=verify-full");
 }
 
 function getPool() {
@@ -167,6 +170,31 @@ create table if not exists app_meta (
   value text not null,
   updated_at timestamptz not null default now()
 );
+
+create table if not exists price_defaults (
+  property text primary key check (property in ('kaja', 'janis')),
+  nightly numeric(10,2) check (nightly is null or nightly > 0),
+  cleaning numeric(10,2) not null default 0 check (cleaning >= 0),
+  updated_by text,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists price_periods (
+  id bigserial primary key,
+  property text not null check (property in ('kaja', 'janis')),
+  date_from date not null,
+  date_to date not null,
+  nightly numeric(10,2) not null check (nightly > 0),
+  label text not null default '',
+  created_by text,
+  created_at timestamptz not null default now(),
+  check (date_to >= date_from)
+);
+create index if not exists price_periods_by_house on price_periods (property, date_from);
+alter table price_defaults add column if not exists min_nights int not null default 1 check (min_nights between 1 and 60);
+alter table price_periods add column if not exists min_nights int check (min_nights is null or min_nights between 1 and 60);
+alter table price_defaults add column if not exists included_guests int check (included_guests is null or included_guests between 1 and 30);
+alter table price_defaults add column if not exists extra_guest numeric(10,2) not null default 0 check (extra_guest >= 0);
 `;
 
 /**

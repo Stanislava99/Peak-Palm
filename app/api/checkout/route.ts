@@ -1,6 +1,6 @@
 import { DEPOSIT_LABEL, HOST_REPLY, splitPayment } from "@/lib/booking-config";
 import { bookingMetadata, forgetBookedNights, newRef } from "@/lib/bookings";
-import { fetchStayQuote } from "@/lib/pricing";
+import { quoteStay } from "@/lib/stay-quote";
 import { getProperty, isPropertyId, type PropertyId } from "@/lib/properties";
 import { calendarWithSources } from "@/lib/reservations";
 import { evaluateStay, formatLong } from "@/lib/stay";
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
   const verdict = evaluateStay(days, checkIn, checkOut);
   if (!verdict.ok) return NextResponse.json({ error: verdict.message }, { status: 409 });
 
-  const priced = await fetchStayQuote(property, checkIn, checkOut, guests);
+  const priced = await quoteStay(property, checkIn, checkOut, guests);
   if (!priced.ok) {
     return NextResponse.json(
       { error: "We couldn’t confirm today’s price for these dates. Please try again in a minute." },
@@ -161,7 +161,7 @@ export async function POST(request: Request) {
       metadata,
       custom_text: {
         submit: {
-          message: `You pay the 50% deposit now and the rest in cash at check-in. The host confirms your booking ${HOST_REPLY}; if the dates can’t be confirmed, the deposit is refunded in full.`,
+          message: `You pay the 50% deposit now and the rest on site, on arrival. The host confirms your booking ${HOST_REPLY}; if the dates can’t be confirmed, the deposit is refunded in full.`,
         },
       },
       expires_at: Math.floor(Date.now() / 1000) + (HOLD_MINUTES - 2) * 60,

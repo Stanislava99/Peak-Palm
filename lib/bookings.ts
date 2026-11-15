@@ -14,7 +14,7 @@ import { dbConfigured } from "./db";
 export { SITE_TAG } from "./stripe-records";
 import { SITE_TAG, listSiteIntents } from "./stripe-records";
 
-export type BookingStatus = "pending" | "confirmed" | "declined" | "expired" | "unpaid";
+export type BookingStatus = "pending" | "confirmed" | "declined" | "cancelled" | "expired" | "unpaid";
 
 export type Booking = {
   ref: string;
@@ -39,7 +39,7 @@ export type Booking = {
   reviewRequestedAt?: string;
   reviewStatus?: string;
   /** When each email went out (flags stored on the payment), for /admin. */
-  emails: { hosts?: string; guest?: string; confirmed?: string; declined?: string };
+  emails: { hosts?: string; guest?: string; confirmed?: string; declined?: string; cancelled?: string };
   /** From the database only. */
   stripeHouse?: PropertyId;
   rawStatus?: string;
@@ -77,6 +77,7 @@ function statusOf(intent: Stripe.PaymentIntent): BookingStatus {
   if (intent.status === "succeeded") {
     if (intent.metadata?.bookingStatus === "confirmed") return "confirmed";
     if (intent.metadata?.bookingStatus === "declined") return "declined";
+    if (intent.metadata?.bookingStatus === "cancelled") return "cancelled";
     return "pending";
   }
   if (intent.status === "requires_capture") return "pending";
@@ -118,6 +119,7 @@ export function bookingFromIntent(intent: Stripe.PaymentIntent): Booking | null 
       guest: m.mailedGuestPending || undefined,
       confirmed: m.mailedConfirmed || undefined,
       declined: m.mailedDeclined || undefined,
+      cancelled: m.mailedCancelled || undefined,
     },
   };
 }

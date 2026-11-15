@@ -41,7 +41,7 @@ export function Header({ sections = true, sibling, house }: Props) {
     <header className={`site-header ${solid || open ? "is-solid" : ""}`}>
       <a className="promo-bar" href={sections ? "#stay" : "#houses"}>
         <b>Book direct, save {DIRECT_DISCOUNT_LABEL}.</b>
-        <span> Same houses, same host, {DIRECT_DISCOUNT_LABEL} less than the Airbnb price.</span>
+        <span> Same houses, same host, {DIRECT_DISCOUNT_LABEL} less than on booking platforms.</span>
         <i aria-hidden="true">→</i>
       </a>
       <div className="header-row">

@@ -49,6 +49,7 @@ export const EMAIL_KIND: Record<string, string> = {
   mailedGuestPending: "guest_pending",
   mailedConfirmed: "confirmed",
   mailedDeclined: "declined",
+  mailedCancelled: "cancelled",
   reviewReceived: "review_received",
   mailedBalance: "balance_paid",
   mailedBalanceFailed: "balance_failed",

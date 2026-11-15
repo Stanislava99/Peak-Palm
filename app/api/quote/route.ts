@@ -1,4 +1,4 @@
-import { fetchStayQuote } from "@/lib/pricing";
+import { quoteStay } from "@/lib/stay-quote";
 import { getProperty, isPropertyId, type PropertyId } from "@/lib/properties";
 import { clientIp, deny, rateLimit } from "@/lib/security";
 import { NextResponse } from "next/server";
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, reason: "no-price", message: "Choose a check-in and a later check-out." }, { status: 400 });
   }
 
-  const result = await fetchStayQuote(property, checkIn, checkOut, guests);
+  const result = await quoteStay(property, checkIn, checkOut, guests);
   return NextResponse.json(result, {
     headers: { "Cache-Control": "public, s-maxage=900, stale-while-revalidate=1800" },
   });

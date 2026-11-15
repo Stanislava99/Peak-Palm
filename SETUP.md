@@ -127,3 +127,13 @@ When everything works on the test site, repeat steps 3–4 with live keys for th
 - On `/admin` → **Guest reviews**: **Publish on the website** or **Don’t publish**. Published reviews appear in the house page carousel first, marked **Verified direct stay**.
 - To test now: confirm a test booking, then click **Send review request** on it in `/admin`.
 - Publish critical reviews too; under EU consumer rules you must not hide genuine negative reviews. Use “Don’t publish” only for abusive, off-topic or personal-data content.
+
+## Visitor analytics (Umami Cloud)
+
+- Dashboard: https://cloud.umami.is.
+- **Test site:** reports to the Umami website for peak-and-palm-test.vercel.app (ID `5640458b-efcb-443e-aef5-850df991d8ca`, default in `lib/analytics.ts`).
+- **Live site:** add a second Umami website for the live address and set its ID as `UMAMI_WEBSITE_ID` on the `sea-and-ski-prod` Vercel project. Without it the live site sends nothing, so test and live numbers never mix.
+- Never on Vercel previews or localhost. Turn it off anywhere with `ANALYTICS=off`.
+- Script and data go through `/stats/…` on this site (rewrites in `next.config.ts`), so the CSP stays `'self'`. Admin, review and unsubscribe pages are never tracked. Query strings are stripped, so Stripe session IDs never reach Umami. No names, emails, phones or booking refs are sent.
+- Events (`lib/track.ts`): Calendar viewed, Calendar used, Dates selected, Price shown / Price failed, Continue to checkout, Checkout started, Pay deposit clicked, Checkout error, Booking request sent, Booking paid (with revenue), Question sent, Choose dates click, Airbnb click, Booking.com click, WhatsApp/Phone/Email/Social click. Most carry `house` (kaja/janis) and link clicks carry `place` (section of the page).
+- Funnel to create in Umami → Funnels: `/villa-kaja` or `/janis` page view → Calendar used → Dates selected → Checkout started → Pay deposit clicked → Booking paid.

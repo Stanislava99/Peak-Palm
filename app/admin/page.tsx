@@ -1,5 +1,7 @@
 import { Header } from "@/components/Header";
 import { HostActions, HostLogin, HostLogout, ReviewActions } from "@/components/HostPanel";
+import { PriceListEditor } from "@/components/PriceListEditor";
+import { getPriceList } from "@/lib/price-list";
 import { DrawerKeys, FilterBox } from "@/components/AdminUI";
 import { RemoveFromOffers } from "@/components/Unsubscribe";
 import { unsubscribeUrl } from "@/lib/marketing";
@@ -22,7 +24,8 @@ import { bookingEvents, calendarBookings, importFromStripeOnce, listOptOuts, lis
 import { notifyDepositPaid } from "@/lib/booking-notify";
 import { fetchAirbnbCalendar } from "@/lib/listings";
 import { fetchBookingNights } from "@/lib/ical";
-import type { PropertyId } from "@/lib/properties";
+import { getProperty, type PropertyId } from "@/lib/properties";
+import { calendarWithSources } from "@/lib/reservations";
 import {
   AIRBNB_HOST_FEE, HOUSES, HOUSE_NAME, addDays, guestList, isLive, monthlyRevenue, money, movements, revenueYears, type Guest, type MonthBar,
 } from "@/lib/admin-data";
@@ -30,8 +33,8 @@ import {
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Admin", robots: { index: false, follow: false } };
 
-type View = "today" | "calendar" | "bookings" | "guests" | "revenue" | "reviews" | "inbox" | "setup" | "more";
-const VIEWS: View[] = ["today", "calendar", "bookings", "guests", "revenue", "reviews", "inbox", "setup", "more"];
+type View = "today" | "calendar" | "bookings" | "guests" | "revenue" | "prices" | "reviews" | "inbox" | "setup" | "more";
+const VIEWS: View[] = ["today", "calendar", "bookings", "guests", "revenue", "prices", "reviews", "inbox", "setup", "more"];
 type Params = { view?: string; m?: string; span?: string; b?: string; y?: string };
 
 /* ── Small pieces ──────────────────────────────────────── */
@@ -42,6 +45,7 @@ const ICONS: Record<string, string> = {
   bookings: "M5 4h14v16H5zM8.5 8.5h7M8.5 12h7M8.5 15.5h4",
   guests: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5M16 4.3a3.4 3.4 0 0 1 0 6.4M18 14.8c2 .6 3.2 2.3 3.5 5.2",
   revenue: "M4 20V10M10 20V4M16 20v-7M21 20H3",
+  prices: "M3.5 12.5 11.5 4.5H19.5V12.5L11.5 20.5ZM15.5 8.5h.01",
   reviews: "m12 3.5 2.6 5.3 5.9.8-4.3 4.1 1 5.8L12 16.8 6.8 19.5l1-5.8L3.5 9.6l5.9-.8z",
   inbox: "M3.5 13.5 6 5h12l2.5 8.5V19h-17zM3.5 13.5H9l1 2h4l1-2h5.5",
   setup: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM19.4 13.5l1.6 1.2-2 3.4-1.9-.7a7 7 0 0 1-2.1 1.2l-.3 2h-4l-.3-2a7 7 0 0 1-2.1-1.2l-1.9.7-2-3.4 1.6-1.2a7 7 0 0 1 0-3L2.4 9.3l2-3.4 1.9.7a7 7 0 0 1 2.1-1.2l.3-2h4l.3 2a7 7 0 0 1 2.1 1.2l1.9-.7 2 3.4-1.6 1.2a7 7 0 0 1 0 3Z",
@@ -78,8 +82,9 @@ const whatsapp = (phone: string) => {
 
 function statusText(b: Booking) {
   if (b.status === "pending") return "Waiting for you";
-  if (b.status === "confirmed") return b.balancePaid ? "Confirmed · paid" : "Confirmed · cash due";
+  if (b.status === "confirmed") return b.balancePaid ? "Confirmed · paid" : "Confirmed · balance due";
   if (b.status === "declined") return "Declined · refunded";
+  if (b.status === "cancelled") return "Cancelled by guest · refunded";
   if (b.status === "expired") return "Not completed";
   return "Not paid";
 }
@@ -153,12 +158,14 @@ function stripeSetup() {
 
 function emailLine(b: Booking) {
   const parts: string[] = [];
-  if (b.status === "pending" || b.status === "confirmed" || b.status === "declined") {
-    parts.push(b.emails.hosts ? `Hosts notified ${clock(b.emails.hosts)}` : "Hosts NOT notified");
-    parts.push(b.emails.guest ? `“Deposit received” sent ${clock(b.emails.guest)}` : "Guest NOT emailed yet");
+  const sent = (what: string, at?: string) => (at ? `✓ ${what} · ${clock(at)}` : `… ${what} · not sent yet`);
+  if (b.status === "pending" || b.status === "confirmed" || b.status === "declined" || b.status === "cancelled") {
+    parts.push(sent("New-booking email to you", b.emails.hosts));
+    parts.push(sent("“Deposit received” email to the guest", b.emails.guest));
   }
-  if (b.status === "confirmed") parts.push(b.emails.confirmed ? `Confirmation sent ${clock(b.emails.confirmed)}` : "Confirmation NOT sent");
-  if (b.status === "declined") parts.push(b.emails.declined ? `Refund email sent ${clock(b.emails.declined)}` : "Refund email NOT sent");
+  if (b.status === "confirmed") parts.push(sent("Confirmation with PDF to the guest", b.emails.confirmed));
+  if (b.status === "declined") parts.push(sent("Refund email to the guest", b.emails.declined));
+  if (b.status === "cancelled") parts.push(sent("Cancellation email to the guest", b.emails.cancelled));
   return parts;
 }
 
@@ -242,6 +249,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     { id: "bookings", label: "Bookings", mobile: true },
     { id: "guests", label: "Guests" },
     { id: "revenue", label: "Revenue", mobile: true },
+    { id: "prices", label: "Prices" },
     { id: "reviews", label: "Reviews", badge: newReviews.length },
     { id: "inbox", label: "Questions", badge: recentQuestions.length },
     { id: "setup", label: "Setup" },
@@ -284,7 +292,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           <a
             key={item.id}
             href={go(item.id)}
-            aria-current={view === item.id || (item.id === "more" && ["guests", "reviews", "inbox", "setup", "more"].includes(view)) ? "page" : undefined}
+            aria-current={view === item.id || (item.id === "more" && ["guests", "prices", "reviews", "inbox", "setup", "more"].includes(view)) ? "page" : undefined}
           >
             <Icon name={item.id} size={22} />
             <span>{item.label}</span>
@@ -295,15 +303,20 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
       <main className="adm-main" id="top">
         {problem ? <p className="adm-alert is-error">{problem}</p> : null}
-        {!problem && silent.length ? (
-          <div className="adm-alert is-error">
+        {!problem && silent.length && (view === "today" || view === "setup") ? (
+          <div className="adm-alert is-calm" role="status">
             <b>
-              {plural(silent.length, "paid booking")} never triggered the “new booking” email ({silent.map((b) => b.ref).join(", ")}).
+              {silent.length === 1 ? "One booking" : `${silent.length} bookings`} didn’t send the booking emails ({silent.map((b) => b.ref).join(", ")}).
             </b>{" "}
-            Stripe isn’t reaching the site, or email sending failed. In each house’s Stripe account open Workbench → Webhooks → your endpoint →{" "}
-            <b>Event deliveries</b>: the URL must be <b>{getSiteUrl()}/api/stripe/webhook</b> with payment_intent.succeeded and
-            payment_intent.payment_failed, and deliveries must show 200. A 400 means the signing secret in Vercel doesn’t match. Then press
-            “Resend emails” on each booking.
+            The guests have paid and everything else is fine. Open each booking and choose “Resend booking emails”.
+            <details>
+              <summary>Why this happens and how to fix it for good</summary>
+              <p>
+                Usually Stripe couldn’t reach the site. In each house’s Stripe account open Workbench → Webhooks → your endpoint → Event deliveries.
+                The address should be <b>{getSiteUrl()}/api/stripe/webhook</b>, with the events payment_intent.succeeded and payment_intent.payment_failed,
+                and deliveries should show 200. If they show 400, the signing secret saved in Vercel doesn’t match the one in Stripe.
+              </p>
+            </details>
           </div>
         ) : null}
 
@@ -327,6 +340,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         {view === "bookings" ? <BookingsView bookings={bookings} today={today} link={link} /> : null}
         {view === "guests" ? <GuestsView guests={guestList(bookings, today, optOuts)} today={today} link={link} /> : null}
         {view === "revenue" ? <RevenueView bookings={bookings} year={Number(params.y) || Number(today.slice(0, 4))} today={today} link={link} /> : null}
+        {view === "prices" ? <PricesView today={today} /> : null}
         {view === "reviews" ? <ReviewsView reviews={directReviews} /> : null}
         {view === "inbox" ? <InboxView questions={questions} database={dbConfigured()} /> : null}
         {view === "setup" ? <SetupView reviewReports={reviewReports} /> : null}
@@ -412,7 +426,7 @@ function TodayView({
           <span>{week.length ? `Next: ${firstName(week[0].name)}, ${formatDay(week[0].checkIn)}` : "No direct arrivals this week"}</span>
         </a>
         <a className="adm-kpi" href={go("revenue")}>
-          <small>Cash to collect</small>
+          <small>Balance to collect</small>
           <b>{money0(cashUpcoming)}</b>
           <span>Balances due at upcoming check-ins</span>
         </a>
@@ -450,7 +464,7 @@ function TodayView({
           {cashOverdue.map((b) => (
             <a className="adm-task is-link" key={`cash-${b.ref}`} href={link({ b: b.ref })}>
               <span className="adm-task-title">
-                Cash balance not marked received · <b>{b.name}</b>
+                Balance not marked received · <b>{b.name}</b>
               </span>
               <span className="adm-task-meta">
                 {money0(b.balance)} · checked in {formatDay(b.checkIn)} at {HOUSE_NAME[b.property]}
@@ -506,7 +520,7 @@ function Movement({ title, list, empty, link, kind }: { title: string; list: Boo
                     {HOUSE_NAME[b.property]} · {plural(b.guests, "guest")}
                     {kind === "in" ? ` · arrives ${b.arrival || "time not given"}` : ""}
                     {kind === "stay" ? ` · leaves ${formatDay(b.checkOut)}` : ""}
-                    {kind === "in" && !b.balancePaid && b.status === "confirmed" ? ` · collect ${money0(b.balance)} cash` : ""}
+                    {kind === "in" && !b.balancePaid && b.status === "confirmed" ? ` · collect ${money0(b.balance)}` : ""}
                   </small>
                 </span>
               </a>
@@ -558,7 +572,7 @@ function Agenda({ bookings, today, from, days, link, title = "Coming up" }: { bo
                     <small>
                       {plural(b.guests, "guest")} · {plural(nightsBetween(b.checkIn, b.checkOut), "night")}
                       {b.arrival ? ` · arrives ${b.arrival}` : ""}
-                      {b.status === "pending" ? " · not confirmed yet" : !b.balancePaid ? ` · ${money0(b.balance)} cash due` : ""}
+                      {b.status === "pending" ? " · not confirmed yet" : !b.balancePaid ? ` · ${money0(b.balance)} due` : ""}
                     </small>
                   </a>
                 ))}
@@ -582,7 +596,8 @@ function bookingTags(b: Booking, today: string) {
   if (isLive(b) && b.checkIn <= today && b.checkOut > today) tags.push("staying");
   if (isLive(b) && b.checkOut <= today) tags.push("past");
   if (b.status === "confirmed" && !b.balancePaid) tags.push("cash");
-  if (!isLive(b)) tags.push("declined");
+  if (b.status === "cancelled") tags.push("cancelled");
+  else if (!isLive(b)) tags.push("declined");
   return tags.join(" ");
 }
 
@@ -603,9 +618,10 @@ function BookingsView({ bookings, today, link }: { bookings: Booking[]; today: s
             { value: "waiting", label: "Waiting" },
             { value: "upcoming", label: "Upcoming" },
             { value: "staying", label: "Staying now" },
-            { value: "cash", label: "Cash due" },
+            { value: "cash", label: "Balance due" },
             { value: "past", label: "Past" },
             { value: "declined", label: "Declined" },
+            { value: "cancelled", label: "Cancelled" },
             { value: "kaja", label: "Villa Kaja" },
             { value: "janis", label: "Jani’s" },
           ]}
@@ -829,10 +845,10 @@ function RevenueView({ bookings, year, today, link }: { bookings: Booking[]; yea
         <div className="adm-kpi">
           <small>Received</small>
           <b>{money0(m.collected)}</b>
-          <span>Deposits on Stripe + cash marked received</span>
+          <span>Deposits on Stripe + balances marked received</span>
         </div>
         <div className="adm-kpi">
-          <small>Cash still to collect</small>
+          <small>Balance still to collect</small>
           <b>{money0(m.cashDue)}</b>
           <span>Balances paid at check-in</span>
         </div>
@@ -1070,8 +1086,8 @@ function SetupView({ reviewReports }: { reviewReports: Array<{ reviews: unknown[
         </div>
         <p className="adm-sub">
           Guests pay a 50% deposit at checkout. Confirm to send them their confirmation email and PDF; decline to refund the deposit in full.
-          Paid dates are blocked on this site straight away. Block them on Airbnb and Booking.com when you confirm. The balance is paid in cash at
-          check-in: mark it as received on the booking.
+          Paid dates are blocked on this site straight away. Block them on Airbnb and Booking.com when you confirm. The balance is paid on site, on
+          arrival: mark it as received on the booking.
         </p>
         <div className="adm-actions">
           <a className="adm-btn" href={`https://dashboard.stripe.com/${isTestMode() ? "test/" : ""}payments`} target="_blank" rel="noreferrer">
@@ -1082,6 +1098,50 @@ function SetupView({ reviewReports }: { reviewReports: Array<{ reviews: unknown[
           </a>
         </div>
       </section>
+    </>
+  );
+}
+
+/* ── Prices (fallback when Airbnb doesn't answer) ───────── */
+
+async function PricesView({ today }: { today: string }) {
+  if (!dbConfigured()) {
+    return (
+      <>
+        <PageHead title="Prices" />
+        <section className="adm-card">
+          <p className="adm-sub">Prices are kept in the database, which isn’t connected on this site yet. See Setup.</p>
+        </section>
+      </>
+    );
+  }
+  const [list, kajaDays, janisDays] = await Promise.all([
+    getPriceList().catch(() => null),
+    calendarWithSources("kaja").then((c) => c.days).catch(() => []),
+    calendarWithSources("janis").then((c) => c.days).catch(() => []),
+  ]);
+  const taken = (days: Array<{ date: string; available: boolean }>) => days.filter((d) => !d.available).map((d) => d.date);
+  return (
+    <>
+      <PageHead
+        title="Prices"
+        sub="Guests normally see the live Airbnb price, 10% lower. If Airbnb doesn’t answer, the site uses the prices you set here. Enter the amount guests should pay on your site."
+      />
+      {list ? (
+        <PriceListEditor
+          list={list}
+          houses={[
+            { id: "kaja", name: "Villa Kaja", maxGuests: getProperty("kaja").maxGuests },
+            { id: "janis", name: "Jani’s Beach House", maxGuests: getProperty("janis").maxGuests },
+          ]}
+          taken={{ kaja: taken(kajaDays), janis: taken(janisDays) }}
+          today={today}
+        />
+      ) : (
+        <section className="adm-card">
+          <p className="adm-sub">We couldn’t load your prices just now. Please refresh the page in a moment.</p>
+        </section>
+      )}
     </>
   );
 }
@@ -1239,15 +1299,15 @@ function BookingDrawer({
                   <b>{formatMoney(b.directTotal)}</b>
                   {b.airbnbTotal ? <span>Airbnb {formatMoney(b.airbnbTotal)}</span> : null}
                 </div>
-                <div className={b.status === "declined" ? "is-muted" : "is-ok"}>
+                <div className={b.status === "declined" || b.status === "cancelled" ? "is-muted" : "is-ok"}>
                   <small>Deposit · Stripe</small>
                   <b>{formatMoney(b.deposit)}</b>
-                  <span>{b.status === "declined" ? "Refunded" : isLive(b) ? "Paid" : "Not paid"}</span>
+                  <span>{b.status === "declined" || b.status === "cancelled" ? "Refunded" : isLive(b) ? "Paid" : "Not paid"}</span>
                 </div>
                 <div className={b.balancePaid ? "is-ok" : b.status === "confirmed" ? "is-warn" : ""}>
-                  <small>Balance · cash</small>
+                  <small>Balance · on arrival</small>
                   <b>{formatMoney(b.balance)}</b>
-                  <span>{b.balancePaid ? `Received${b.balanceCashBy ? ` by ${b.balanceCashBy}` : ""}` : "Due at check-in"}</span>
+                  <span>{b.balancePaid ? `Received${b.balanceCashBy ? ` by ${b.balanceCashBy}` : ""}` : "Due on arrival"}</span>
                 </div>
               </div>
               <div className="adm-actions">
@@ -1266,7 +1326,7 @@ function BookingDrawer({
               <h3>Emails &amp; review</h3>
               <ul className="adm-mini">
                 {emailLine(b).map((line) => (
-                  <li key={line} className={/NOT/.test(line) ? "is-bad" : ""}>
+                  <li key={line} className={line.startsWith("✓") ? "adm-email-ok" : "adm-email-wait"}>
                     {line}
                   </li>
                 ))}

@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CalendarDay } from "@/lib/listings";
 import type { CalendarSources } from "@/lib/reservations";
 import { DEPOSIT_LABEL } from "@/lib/booking-config";
+import { SecurePay } from "./SecurePay";
+import { Icon } from "./Icons";
 import { DIRECT_DISCOUNT_LABEL, formatMoney, type QuoteResult, type StayQuote } from "@/lib/pricing";
 import { stayLink, type PropertyId } from "@/lib/properties";
 import { evaluateStay, formatLong, monthGrid, monthLabel } from "@/lib/stay";
+import { track } from "@/lib/track";
 
 type Props = {
   property: PropertyId;
@@ -50,10 +53,71 @@ export function Availability({
   const [quote, setQuote] = useState<StayQuote | null>(null);
   const [quoteState, setQuoteState] = useState<"idle" | "loading" | "ready" | "failed">("idle");
   const [quoteMessage, setQuoteMessage] = useState("");
+  const [quoteAttempt, setQuoteAttempt] = useState(0);
 
   const byDate = useMemo(() => new Map(days.map((day) => [day.date, day])), [days]);
   const verdict = checkIn && checkOut ? evaluateStay(days, checkIn, checkOut) : null;
   const stayOk = Boolean(verdict?.ok);
+
+  // Analytics: who sees the calendar, who uses it, which stays they look at.
+  const sectionRef = useRef<HTMLElement>(null);
+  const usedRef = useRef(false);
+  const lastStayRef = useRef("");
+  const lastPriceRef = useRef("");
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          track("Calendar viewed", { house: property });
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.35 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [property]);
+  function markUsed(how: string) {
+    if (usedRef.current) return;
+    usedRef.current = true;
+    track("Calendar used", { house: property, how });
+  }
+  useEffect(() => {
+    if (!stayOk || !checkIn || !checkOut || !verdict) return;
+    const key = `${checkIn}|${checkOut}|${guests}`;
+    if (key === lastStayRef.current) return;
+    lastStayRef.current = key;
+    const leadDays = Math.round((Date.parse(checkIn) - Date.parse(today)) / 86_400_000);
+    track("Dates selected", {
+      house: property,
+      nights: verdict.nights,
+      guests,
+      month: checkIn.slice(0, 7),
+      leadDays,
+    });
+  }, [stayOk, checkIn, checkOut, guests, verdict, property, today]);
+  useEffect(() => {
+    if (quoteState !== "ready" && quoteState !== "failed") return;
+    const key = `${checkIn}|${checkOut}|${guests}|${quoteState}`;
+    if (key === lastPriceRef.current) return;
+    lastPriceRef.current = key;
+    if (quoteState === "ready" && quote) {
+      track("Price shown", { house: property, nights: quote.nights, guests, directTotal: Math.round(quote.directTotal) });
+    } else {
+      track("Price failed", { house: property });
+    }
+  }, [quoteState, quote, checkIn, checkOut, guests, property]);
+  function continueClicked(place: string) {
+    track("Continue to checkout", {
+      house: property,
+      place,
+      nights: verdict?.nights ?? 0,
+      guests,
+      ...(quote ? { directTotal: Math.round(quote.directTotal) } : {}),
+    });
+  }
 
   useEffect(() => {
     if (!stayOk || !checkIn || !checkOut) {
@@ -66,8 +130,16 @@ export function Availability({
     const timer = window.setTimeout(async () => {
       try {
         const params = new URLSearchParams({ property, checkIn, checkOut, guests: String(guests) });
+        if (quoteAttempt) params.set("retry", String(quoteAttempt));
         const response = await fetch(`/api/quote?${params}`, { signal: controller.signal });
-        const data = (await response.json()) as QuoteResult;
+        const data = (await response.json().catch(() => null)) as (QuoteResult & { error?: string }) | null;
+        if (!response.ok || !data) {
+          // e.g. 429 "Too many price checks": the body is { error }, not a QuoteResult.
+          setQuote(null);
+          setQuoteMessage(data?.error ?? "The price could not be loaded just now.");
+          setQuoteState("failed");
+          return;
+        }
         if (data.ok) {
           setQuote(data.quote);
           setQuoteState("ready");
@@ -79,7 +151,7 @@ export function Availability({
       } catch (error) {
         if ((error as Error).name === "AbortError") return;
         setQuote(null);
-        setQuoteMessage("The Airbnb price could not be loaded just now.");
+        setQuoteMessage("The comparison price could not be loaded just now.");
         setQuoteState("failed");
       }
     }, 350);
@@ -87,7 +159,7 @@ export function Availability({
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [stayOk, checkIn, checkOut, guests, property]);
+  }, [stayOk, checkIn, checkOut, guests, property, quoteAttempt]);
   const lastDay = days.at(-1)?.date ?? today;
 
   const second = cursor.month === 11
@@ -95,6 +167,7 @@ export function Availability({
     : { year: cursor.year, month: cursor.month + 1 };
 
   function shift(amount: number) {
+    markUsed("month");
     const next = new Date(Date.UTC(cursor.year, cursor.month + amount, 1));
     const earliest = new Date();
     earliest.setUTCDate(1);
@@ -106,6 +179,7 @@ export function Availability({
   function pick(iso: string) {
     const day = byDate.get(iso);
     if (!day || iso < today) return;
+    markUsed("date");
     if (!checkIn || (checkIn && checkOut) || iso <= checkIn) {
       if (!day.checkin) return;
       setCheckIn(iso);
@@ -136,11 +210,9 @@ export function Availability({
     }
   }
 
-  const airbnbHref =
-    checkIn && checkOut ? stayLink(airbnbUrl, checkIn, checkOut, guests, "airbnb") : airbnbUrl;
 
   return (
-    <section id="stay" className="section stay-section">
+    <section id="stay" className="section stay-section" ref={sectionRef}>
       <div className="section-head">
         <p className="eyebrow">Live dates</p>
         <h2>Pick your dates, see your price</h2>
@@ -181,21 +253,28 @@ export function Availability({
             <li><i className="swatch taken" /> Booked</li>
             <li><i className="swatch chosen" /> Your stay</li>
           </ul>
+          <div className="calendar-notes">
           <p className="sync-note">
             <i aria-hidden="true" />
             {sources.booking === "synced"
-              ? "Synced with Airbnb and Booking.com"
+              ? "Live availability, synced with all our bookings"
               : sources.booking === "failed"
-                ? "Synced with Airbnb · Booking.com didn’t respond, the host will double-check"
-                : "Synced with Airbnb"}
+                ? "Live availability · part of the calendar didn’t respond, the host will double-check"
+                : "Live availability, synced with all our bookings"}
           </p>
+          {paymentsOn ? (
+            <p className="calendar-secure">
+              <Icon name="lock" size={15} /> Secure payment by Stripe · 3-D Secure
+            </p>
+          ) : null}
+          </div>
         </div>
 
         </div>
 
         <aside className="stay-card">
           <p className="direct-badge">
-            <span>−{DIRECT_DISCOUNT_LABEL}</span> Book direct and pay {DIRECT_DISCOUNT_LABEL} less than on Airbnb
+            <span>−{DIRECT_DISCOUNT_LABEL}</span> Book direct and pay {DIRECT_DISCOUNT_LABEL} less than on booking platforms
           </p>
           <p className="stay-kicker">{kicker}</p>
           <div className="guest-row">
@@ -205,11 +284,17 @@ export function Availability({
                 −
               </button>
               <strong>{guests}</strong>
-              <button type="button" onClick={() => setGuests((count) => Math.min(maxGuests, count + 1))} aria-label="More guests">
+              <button
+                type="button"
+                onClick={() => setGuests((count) => Math.min(maxGuests, count + 1))}
+                aria-label="More guests"
+                disabled={guests >= maxGuests}
+              >
                 +
               </button>
             </div>
           </div>
+          {guests >= maxGuests ? <p className="guest-max">Maximum {maxGuests} guests for this house.</p> : null}
           <dl className="stay-dates">
             <div>
               <dt>Check-in</dt>
@@ -224,20 +309,24 @@ export function Availability({
               <p className={`verdict ${verdict?.ok ? "is-ok" : ""}`}>
                 {verdict?.message ?? "Click an arrival date, then a departure date. Minimum stays vary by week."}
               </p>
-              {verdict?.ok ? <PriceBox state={quoteState} quote={quote} message={quoteMessage} /> : null}
-              {verdict?.ok && checkIn && checkOut ? (
+              {verdict?.ok ? (
+                <PriceBox state={quoteState} quote={quote} message={quoteMessage} onRetry={() => setQuoteAttempt((n) => n + 1)} />
+              ) : null}
+              {verdict?.ok && checkIn && checkOut && quoteState !== "failed" ? (
                 <>
                   <a
                     className="book-button reserve card-submit"
+                    onClick={() => continueClicked("card")}
                     href={`/checkout?${new URLSearchParams({ property, checkIn, checkOut, guests: String(guests) })}`}
                   >
                     {quote ? `Continue to checkout · ${formatMoney(quote.directTotal)}` : "Continue to checkout"}
                   </a>
                   <p className="card-hint">
                     {paymentsOn
-                      ? `Pay a ${DEPOSIT_LABEL} deposit at checkout; the rest in cash at check-in.`
+                      ? `Pay a ${DEPOSIT_LABEL} deposit at checkout; the rest on site, on arrival.`
                       : "At checkout you send your details; the host confirms by email and sends a secure payment link."}
                   </p>
+                  {paymentsOn ? <SecurePay compact /> : null}
                 </>
               ) : (
                 <button className="book-button reserve is-disabled" type="button" disabled>
@@ -248,23 +337,26 @@ export function Availability({
           <p className="fine-print">{finePrint} A request on this page is not a confirmed stay.</p>
           <p className="airbnb-alt">
             Prefer Airbnb?{" "}
-            <a href={verdict?.ok ? airbnbHref : airbnbUrl} target="_blank" rel="noreferrer">
-              Book there at the full price
+            <a href={verdict?.ok && checkIn && checkOut ? stayLink(airbnbUrl, checkIn, checkOut, guests, "airbnb") : airbnbUrl} target="_blank" rel="noreferrer">
+              Book there
             </a>
           </p>
         </aside>
       </div>
       <div className={`mobile-bar${verdict?.ok && checkIn && checkOut ? " has-stay" : ""}`}>
-        {verdict?.ok && checkIn && checkOut ? (
+        {verdict?.ok && checkIn && checkOut && quoteState !== "failed" ? (
           <>
             <span className="mobile-bar-price">
               <strong>{quote ? formatMoney(quote.directTotal) : quoteState === "loading" ? "…" : "Your stay"}</strong>
               <small>
                 {verdict.nights} night{verdict.nights === 1 ? "" : "s"} · {guests} guest{guests === 1 ? "" : "s"}
-                {quote ? ` · save ${formatMoney(quote.savings)}` : ""}
+                {quote?.savings ? ` · save ${formatMoney(quote.savings)}` : ""}
               </small>
             </span>
-            <a href={`/checkout?${new URLSearchParams({ property, checkIn, checkOut, guests: String(guests) })}`}>
+            <a
+              onClick={() => continueClicked("mobile-bar")}
+              href={`/checkout?${new URLSearchParams({ property, checkIn, checkOut, guests: String(guests) })}`}
+            >
               Continue to checkout
             </a>
           </>
@@ -272,7 +364,7 @@ export function Availability({
           <>
             <span className="mobile-bar-price">
               <strong>−{DIRECT_DISCOUNT_LABEL}</strong>
-              <small>vs Airbnb when you book here</small>
+              <small>vs booking platforms when you book here</small>
             </span>
             <a href="#stay">Choose dates</a>
           </>
@@ -344,13 +436,38 @@ function Month({
   );
 }
 
-function PriceBox({ state, quote, message }: { state: "idle" | "loading" | "ready" | "failed"; quote: StayQuote | null; message: string }) {
+function PriceBox({
+  state,
+  quote,
+  message,
+  onRetry,
+}: {
+  state: "idle" | "loading" | "ready" | "failed";
+  quote: StayQuote | null;
+  message: string;
+  onRetry: () => void;
+}) {
   if (state === "loading") {
     return (
       <div className="price-box is-loading" aria-live="polite">
         <span className="price-skeleton" />
         <span className="price-skeleton short" />
-        <p>Checking the Airbnb price for these dates…</p>
+        <p>Checking the price for these dates…</p>
+      </div>
+    );
+  }
+  if (state === "ready" && quote && quote.airbnbTotal === null) {
+    return (
+      <div className="price-box" aria-live="polite">
+        <div className="price-row direct">
+          <span>
+            Booking direct
+            <small>
+              {quote.nights} night{quote.nights === 1 ? "" : "s"} · about {formatMoney(quote.perNight)} a night
+            </small>
+          </span>
+          <strong>{formatMoney(quote.directTotal)}</strong>
+        </div>
       </div>
     );
   }
@@ -358,8 +475,8 @@ function PriceBox({ state, quote, message }: { state: "idle" | "loading" | "read
     return (
       <div className="price-box" aria-live="polite">
         <div className="price-row airbnb">
-          <span>On Airbnb</span>
-          <s>{formatMoney(quote.airbnbTotal)}</s>
+          <span>On booking platforms</span>
+          <s>{formatMoney(quote.airbnbTotal ?? 0)}</s>
         </div>
         <div className="price-row direct">
           <span>
@@ -371,7 +488,7 @@ function PriceBox({ state, quote, message }: { state: "idle" | "loading" | "read
           <strong>{formatMoney(quote.directTotal)}</strong>
         </div>
         <p className="price-save">
-          You save <b>{formatMoney(quote.savings)}</b> ({DIRECT_DISCOUNT_LABEL}) compared with Airbnb’s total for the same dates.
+          You save <b>{formatMoney(quote.savings ?? 0)}</b> ({DIRECT_DISCOUNT_LABEL}) compared with booking platforms for the same dates.
         </p>
       </div>
     );
@@ -379,10 +496,10 @@ function PriceBox({ state, quote, message }: { state: "idle" | "loading" | "read
   if (state === "failed") {
     return (
       <div className="price-box is-failed" aria-live="polite">
-        <p>
-          {message} Send the request anyway: the host will confirm your price, {DIRECT_DISCOUNT_LABEL} below Airbnb’s
-          total.
-        </p>
+        <p>{message} Without today’s price you can’t book online yet; please try again in a moment.</p>
+        <button type="button" className="button ghost price-retry" onClick={onRetry}>
+          Try again
+        </button>
       </div>
     );
   }

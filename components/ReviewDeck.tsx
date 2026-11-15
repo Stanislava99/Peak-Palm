@@ -21,6 +21,7 @@ function initials(name: string) {
  * Auto-advances (paused on hover, focus, hidden tab, or reduced motion); swipe, arrows and keys work too.
  */
 export function ReviewDeck({ reviews, airbnbUrl }: { reviews: Review[]; airbnbUrl: string }) {
+  const reviewsUrl = `${airbnbUrl.replace(/\/$/, "")}/reviews`;
   const count = reviews.length;
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -66,7 +67,6 @@ export function ReviewDeck({ reviews, airbnbUrl }: { reviews: Review[]; airbnbUr
     if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(event.clientY - start.y)) go(dx < 0 ? 1 : -1);
   };
 
-  const reviewsUrl = `${airbnbUrl.replace(/\/$/, "")}/reviews`;
 
   return (
     <div
@@ -119,7 +119,7 @@ export function ReviewDeck({ reviews, airbnbUrl }: { reviews: Review[]; airbnbUr
                   <b>{review.name}</b>
                   <small>
                     {review.verified ? `Stayed ${review.date}` : review.date}
-                    {review.translated ? " · translated by Airbnb" : ""}
+                    {review.translated ? " · translated" : ""}
                   </small>
                 </span>
                 <span className={`review-source${review.verified ? " is-direct" : ""}`}>
@@ -128,7 +128,7 @@ export function ReviewDeck({ reviews, airbnbUrl }: { reviews: Review[]; airbnbUr
                       <Icon name="check" size={13} /> Verified direct stay
                     </>
                   ) : (
-                    "Airbnb"
+                    "Guest review"
                   )}
                 </span>
               </figcaption>

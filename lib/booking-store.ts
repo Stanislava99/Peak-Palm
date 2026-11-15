@@ -45,6 +45,7 @@ type Row = {
   email_guest?: Date | null;
   email_confirmed?: Date | null;
   email_declined?: Date | null;
+  email_cancelled?: Date | null;
   marketing_opt_in_at?: Date | null;
 };
 
@@ -54,7 +55,8 @@ const day = (d: string | Date) => (typeof d === "string" ? d.slice(0, 10) : new 
 /** Shown status (the admin page vocabulary). */
 function shownStatus(status: string): BookingStatus {
   if (status === "pending" || status === "confirmed" || status === "declined") return status;
-  if (status === "expired" || status === "cancelled") return "expired";
+  if (status === "cancelled") return "cancelled";
+  if (status === "expired") return "expired";
   return "unpaid";
 }
 
@@ -66,7 +68,8 @@ const SELECT = `
     (select sent_at from emails e where e.ref = b.ref and e.kind = 'hosts_new' and e.status = 'sent') as email_hosts,
     (select sent_at from emails e where e.ref = b.ref and e.kind = 'guest_pending' and e.status = 'sent') as email_guest,
     (select sent_at from emails e where e.ref = b.ref and e.kind = 'confirmed' and e.status = 'sent') as email_confirmed,
-    (select sent_at from emails e where e.ref = b.ref and e.kind = 'declined' and e.status = 'sent') as email_declined
+    (select sent_at from emails e where e.ref = b.ref and e.kind = 'declined' and e.status = 'sent') as email_declined,
+    (select sent_at from emails e where e.ref = b.ref and e.kind = 'cancelled' and e.status = 'sent') as email_cancelled
   from bookings b left join reviews r on r.ref = b.ref`;
 
 export function rowToBooking(r: Row): Booking {
@@ -97,6 +100,7 @@ export function rowToBooking(r: Row): Booking {
       guest: iso(r.email_guest),
       confirmed: iso(r.email_confirmed),
       declined: iso(r.email_declined),
+      cancelled: iso(r.email_cancelled),
     },
     stripeHouse: r.stripe_house,
     rawStatus: r.status,
@@ -260,6 +264,29 @@ export async function setStatus(ref: string, status: "confirmed" | "declined", b
   await logEvent(ref, by, status === "confirmed" ? "confirmed" : "declined_refunded", extra);
 }
 
+/** The guest cancels with their link: moves a paid booking to "cancelled" exactly once. Returns the status it had. */
+export async function claimCancel(ref: string): Promise<string | null> {
+  const rows = await q<{ before: string }>(
+    `update bookings b set status = 'cancelled', updated_at = now()
+     from (select ref, status as before from bookings where ref = $1 for update) old
+     where b.ref = old.ref and old.before in ('pending','confirmed') returning old.before`,
+    [ref],
+  );
+  return rows[0]?.before ?? null;
+}
+
+export async function undoCancel(ref: string, before: string) {
+  await q("update bookings set status = $2, updated_at = now() where ref = $1 and status = 'cancelled'", [ref, before]);
+}
+
+export async function setCancelled(ref: string, refundId?: string) {
+  await q(
+    "update bookings set refund_id = coalesce($2, refund_id), refunded_at = case when $2::text is null then refunded_at else now() end, updated_at = now() where ref = $1",
+    [ref, refundId ?? null],
+  );
+  await logEvent(ref, "guest", "cancelled_by_guest_refunded", { refundId });
+}
+
 /** Moves a booking from "waiting" to a decision exactly once (two admins clicking at the same moment). */
 export async function claimDecision(ref: string, to: "confirmed" | "declined"): Promise<boolean> {
   const rows = await q("update bookings set status = $2, updated_at = now() where ref = $1 and status = 'pending' returning ref", [ref, to]);
@@ -398,7 +425,7 @@ export async function withdrawMarketing(email: string, source: string) {
 
 function dbStatusFromStripe(intent: Stripe.PaymentIntent): string {
   const s = bookingFromIntent(intent)?.status;
-  if (s === "pending" || s === "confirmed" || s === "declined") return s;
+  if (s === "pending" || s === "confirmed" || s === "declined" || s === "cancelled") return s;
   if (s === "expired") return "expired";
   return "payment_failed";
 }
@@ -423,7 +450,7 @@ export async function importIntent(intent: Stripe.PaymentIntent, stripeHouse?: P
   );
   if (!inserted.length) return false;
   await logEvent(b.ref, "system", "imported_from_stripe", { intent: intent.id });
-  const flags: Array<[string, string]> = [["mailedRequest", "hosts_new"], ["mailedGuestPending", "guest_pending"], ["mailedConfirmed", "confirmed"], ["mailedDeclined", "declined"]];
+  const flags: Array<[string, string]> = [["mailedRequest", "hosts_new"], ["mailedGuestPending", "guest_pending"], ["mailedConfirmed", "confirmed"], ["mailedDeclined", "declined"], ["mailedCancelled", "cancelled"]];
   for (const [flag, kind] of flags) {
     if (m[flag]) await q("insert into emails (ref, kind, status, sent_at) values ($1, $2, 'sent', $3) on conflict do nothing", [b.ref, kind, m[flag]]);
   }

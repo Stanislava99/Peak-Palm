@@ -75,7 +75,7 @@ export default async function JanisPage() {
       () => ({
         days: [] as CalendarDay[],
         sources: { booking: "not-configured" } as CalendarSources,
-        error: "Airbnb’s calendar did not respond. You can still open the listing to check dates.",
+        error: "The live calendar did not respond just now. Ask the host about your dates below.",
       }),
     ),
   ]);
@@ -84,8 +84,8 @@ export default async function JanisPage() {
     <>
       <Header house="Jani’s Beach House" sibling={{ href: "/villa-kaja", label: "Ski · Bansko" }} />
       <main id="top">
-        <section className="hero">
-          <Image src="/photos/janis/01-cover.jpg" alt="The path from Jani’s Beach House down to the sea, the cover photo from the Airbnb listing" fill priority sizes="100vw" />
+        <section className="hero is-right">
+          <Image src="/photos/janis/00-front.jpg" alt="Jani’s Beach House from the front: white balconies, palm trees and the sea at the end of the paved lane" fill priority sizes="100vw" style={{ objectPosition: "40% center" }} />
           <div className="hero-shade" />
           <div className="hero-copy">
             <p className="eyebrow light">Sea · Neoi Epivates · Thermaikos</p>
@@ -99,14 +99,14 @@ export default async function JanisPage() {
               <a className="rating-pill" href={house.airbnbUrl} target="_blank" rel="noreferrer">
                 <Stars score={rating.score} size={15} />
                 <strong>{rating.score.toFixed(2)}</strong>
-                <em>{rating.count} reviews on Airbnb</em>
+                <em>{rating.count} guest reviews</em>
               </a>
             </div>
             <div className="hero-actions">
               <a className="hero-cta" href="#stay">
                 Book direct and save {DIRECT_DISCOUNT_LABEL}
               </a>
-              <span className="hero-note">{DIRECT_DISCOUNT_LABEL} below the Airbnb price for the same dates</span>
+              <span className="hero-note">{DIRECT_DISCOUNT_LABEL} below booking platforms for the same dates</span>
             </div>
           </div>
         </section>
@@ -131,9 +131,6 @@ export default async function JanisPage() {
             </p>
             <p>
               Host Frosina looks after this house and Villa Kaja in Bansko.
-              {rating.live
-                ? " The Airbnb score on this page is read from the live listing."
-                : " The Airbnb score shown here was last confirmed at 4.93 from 43 reviews."}
             </p>
             <ul className="house-points">
               <li>Exclusive use for one group</li>
@@ -186,7 +183,7 @@ export default async function JanisPage() {
           kicker="The whole house · up to 9 guests"
           finePrint="Self check-in with a lockbox. Quiet hours are 11:00 pm to 8:00 am. The house is reserved for your group only."
           airbnbUrl={house.airbnbUrl}
-          intro={`Pick your dates and guests to see your direct price, ${DIRECT_DISCOUNT_LABEL} below Airbnb. At checkout you pay a 50% deposit (the rest in cash at check-in); the host then confirms your booking by email.`}
+          intro={`Pick your dates and guests to see your direct price, ${DIRECT_DISCOUNT_LABEL} below booking platforms. At checkout you pay a 50% deposit (the rest paid on site, on arrival); the host then confirms your booking by email.`}
           initialDays={calendar.days}
           initialError={calendar.error}
           initialSources={calendar.sources}
@@ -210,6 +207,11 @@ export default async function JanisPage() {
               <li>Thessaloniki Airport · about 9 km</li>
               <li>Thessaloniki centre · about 20 km</li>
             </ul>
+            {house.registration ? (
+              <p className="house-reg">
+                Registered short-term rental · {house.registration.label} {house.registration.number}
+              </p>
+            ) : null}
             <a
               className="text-link"
               href="https://www.google.com/maps/search/?api=1&query=Jani%27s+Beach+House+Neoi+Epivates"
@@ -235,7 +237,6 @@ export default async function JanisPage() {
             name: "Jani’s Beach House",
             url: `${getSiteUrl()}/janis`,
             image: `${getSiteUrl()}/photos/janis/01-cover.jpg`,
-            sameAs: house.airbnbUrl,
             description:
               "Beachfront house in Neoi Epivates for up to 9 guests, with three bedrooms, four bathrooms, and the sand about 30 metres away.",
             address: {

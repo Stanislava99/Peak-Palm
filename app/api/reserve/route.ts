@@ -5,7 +5,7 @@ import {
   reservationOverlaps,
   saveReservation,
 } from "@/lib/reservations";
-import { fetchStayQuote } from "@/lib/pricing";
+import { quoteStay } from "@/lib/stay-quote";
 import { evaluateStay } from "@/lib/stay";
 import { sendEmail } from "@/lib/email";
 import { HOUSE_NAMES, adminMessage, guestRequestAck } from "@/lib/email-templates";
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const priced = await fetchStayQuote(property, checkIn, checkOut, guests);
+  const priced = await quoteStay(property, checkIn, checkOut, guests);
   const quote = priced.ok ? priced.quote : null;
 
   const id = `${house.reservePrefix}-${Date.now().toString(36).toUpperCase()}`;
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
       email,
       phone: phone || "—",
       message: note || "—",
-      "direct price": quote ? `€${quote.directTotal} (Airbnb €${quote.airbnbTotal})` : "not available",
+      "direct price": quote ? `€${quote.directTotal}${quote.airbnbTotal !== null ? ` (Airbnb €${quote.airbnbTotal})` : " (from the price list)"}` : "not available",
     }),
   });
   if (!notified.sent && !saved) {

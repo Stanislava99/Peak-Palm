@@ -40,6 +40,42 @@ export function parseIcalNights(text: string): Set<string> {
   return nights;
 }
 
+/**
+ * Airbnb's own calendar export (Listing → Availability → Connect calendars → Export calendar).
+ * The official way to read Airbnb availability: reservations and blocked nights (no prices).
+ */
+const AIRBNB_ICAL_ENV: Record<PropertyId, string> = {
+  kaja: "AIRBNB_ICAL_KAJA",
+  janis: "AIRBNB_ICAL_JANIS",
+};
+
+export function airbnbIcalUrl(property: PropertyId): string | null {
+  const value = process.env[AIRBNB_ICAL_ENV[property]]?.trim();
+  return value && /^https:\/\/([a-z0-9-]+\.)*airbnb\.[a-z.]+\//i.test(value) ? value : null;
+}
+
+/** Nights taken on Airbnb from the export link, or null if the link isn't set or didn't answer. */
+export async function fetchAirbnbIcalNights(property: PropertyId): Promise<Set<string> | null> {
+  const url = airbnbIcalUrl(property);
+  if (!url) return null;
+  try {
+    const response = await fetch(url, { headers: { Accept: "text/calendar, text/plain, */*" }, next: { revalidate: 600 } });
+    if (!response.ok) {
+      console.warn("Airbnb iCal request failed", { property, status: response.status });
+      return null;
+    }
+    const text = await response.text();
+    if (!text.includes("BEGIN:VCALENDAR")) {
+      console.warn("Airbnb iCal response was not a calendar", { property });
+      return null;
+    }
+    return parseIcalNights(text);
+  } catch (error) {
+    console.warn("Airbnb iCal request threw", { property, error: (error as Error).message });
+    return null;
+  }
+}
+
 export type ChannelNights = { nights: Set<string>; status: "synced" | "not-configured" | "failed" };
 
 /** Nights already booked on Booking.com for this house. */

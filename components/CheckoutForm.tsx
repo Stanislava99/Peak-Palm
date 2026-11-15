@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { DEPOSIT_LABEL, OFFERS_LINE } from "@/lib/booking-config";
+import { SecurePay } from "./SecurePay";
 import { formatMoney } from "@/lib/pricing";
 import type { PropertyId } from "@/lib/properties";
+import { track } from "@/lib/track";
 
 const ARRIVAL_TIMES = ["Not sure yet", "Before 4 pm", "4–6 pm", "6–8 pm", "8–10 pm", "After 10 pm"];
 
@@ -35,11 +37,19 @@ export function CheckoutForm({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requestRef, setRequestRef] = useState<string | null>(null);
+  const nights = Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000);
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    track("Checkout started", { house: property, nights, guests, deposit: Math.round(deposit) });
+  }, [property, nights, guests, deposit]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSending(true);
     setError(null);
+    track("Pay deposit clicked", { house: property, nights, guests, deposit: Math.round(deposit), online: paymentsOn });
     try {
       if (paymentsOn) {
         const response = await fetch("/api/checkout", {
@@ -49,6 +59,7 @@ export function CheckoutForm({
         });
         const data = (await response.json()) as { url?: string; error?: string };
         if (!response.ok || !data.url) {
+          track("Checkout error", { house: property, status: response.status });
           setError(data.error ?? "The payment page could not be opened.");
           setSending(false);
           return;
@@ -75,6 +86,7 @@ export function CheckoutForm({
       if (!response.ok || !data.id) {
         setError(data.error ?? "The request could not be sent.");
       } else {
+        track("Booking request sent", { house: property, nights, guests });
         setRequestRef(data.id);
       }
     } catch {
@@ -146,7 +158,7 @@ export function CheckoutForm({
       </label>
 
       <label className="checkout-accept">
-        <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} required />
+        <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} />
         <span>
           I accept the house rules and the cancellation policy below, and I’ve read the{" "}
           <a href="/privacy" target="_blank" rel="noreferrer">
@@ -167,7 +179,7 @@ export function CheckoutForm({
 
       {error ? <p className="reserve-error">{error}</p> : null}
 
-      <button className="book-button reserve checkout-pay" type="submit" disabled={sending}>
+      <button className="book-button reserve checkout-pay" type="submit" disabled={sending || !accepted} title={accepted ? undefined : "Tick the box above to continue"}>
         {sending
           ? paymentsOn
             ? "Opening secure payment…"
@@ -181,6 +193,7 @@ export function CheckoutForm({
           ? `You’ll pay on Stripe’s secure page. Only the ${DEPOSIT_LABEL} deposit is paid today; your confirmation follows by email once the host confirms.`
           : "Nothing is charged now. You’ll receive a secure payment link by email once the host confirms your dates."}
       </p>
+      {paymentsOn ? <SecurePay /> : null}
     </form>
   );
 }

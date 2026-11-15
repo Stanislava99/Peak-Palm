@@ -1,4 +1,5 @@
-import { BALANCE_WHEN, HOST_REPLY, HOUSE_RULES } from "./booking-config";
+import { BALANCE_WHEN, CANCEL_HOURS, HOST_REPLY, HOUSE_RULES, cancellationRefund } from "./booking-config";
+import { canStillCancel, cancelDeadline, cancelUrl, formatDeadline } from "./cancellation";
 import type { Booking } from "./bookings";
 import { brand } from "./brand";
 import { formatMoney } from "./pricing";
@@ -69,9 +70,9 @@ function stayRows(b: Booking): Row[] {
 
 function moneyRows(b: Booking, state: "held" | "deposit-paid" | "paid"): Row[] {
   return [
-    ["Direct price", `<b>${formatMoney(b.directTotal)}</b>${b.airbnbTotal ? ` <span style="color:#5d6b78">(Airbnb: <s>${formatMoney(b.airbnbTotal)}</s>)</span>` : ""}`],
+    ["Direct price", `<b>${formatMoney(b.directTotal)}</b>${b.airbnbTotal ? ` <span style="color:#5d6b78">(booking platforms: <s>${formatMoney(b.airbnbTotal)}</s>)</span>` : ""}`],
     ["Deposit", `${formatMoney(b.deposit)} · ${state === "held" ? "held on card, not charged yet" : "paid"}`],
-    ["Balance", `${formatMoney(b.balance)} · ${state === "paid" ? "paid in cash" : BALANCE_WHEN}`],
+    ["Balance", `${formatMoney(b.balance)} · ${state === "paid" ? "paid on arrival" : BALANCE_WHEN}`],
   ];
 }
 
@@ -148,7 +149,23 @@ export function guestRequestReceived(b: Booking) {
 }
 
 /** Sent as soon as the deposit is paid, while the host reviews the booking. */
+/** "Changed your plans?" with the personal cancel link, only while the free-cancellation window is open. */
+function cancelBlock(b: Booking) {
+  if (!canStillCancel(b)) return { html: "", text: "" };
+  const until = formatDeadline(cancelDeadline(b));
+  const { fee, refund } = cancellationRefund(b.deposit);
+  return {
+    html: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 14px"><tr><td style="border:1px solid #e3dccf;border-radius:12px;padding:14px 16px;font-size:14px;line-height:1.55;color:#10263a">
+<b>Changed your plans?</b><br>
+You can cancel within ${CANCEL_HOURS} hours of booking, until <b>${esc(until)}</b>. You then get your deposit back minus the card payment fee Stripe charged on it (about ${formatMoney(fee)} for a European card, so roughly <b>${formatMoney(refund)}</b>; the exact amount is shown before you confirm). After that, cancellations are non-refundable.
+<p style="margin:12px 0 0"><a href="${esc(cancelUrl(b))}" style="color:#123b5a;font-weight:600">Cancel my booking</a></p>
+</td></tr></table>`,
+    text: `\nChanged your plans? You can cancel until ${until} and get your deposit back minus Stripe's card fee (roughly ${formatMoney(refund)}; the exact amount is shown before you confirm): ${cancelUrl(b)}\nAfter that, cancellations are non-refundable.`,
+  };
+}
+
 export function guestDepositReceived(b: Booking) {
+  const cancel = cancelBlock(b);
   const first = b.name.split(" ")[0];
   return {
     subject: `Deposit received, awaiting confirmation · ${HOUSE_NAMES[b.property]} · ${b.ref}`,
@@ -162,17 +179,19 @@ export function guestDepositReceived(b: Booking) {
 2. You receive your booking confirmation by email, with a PDF and the arrival details.<br>
 3. If the booking can’t be confirmed, your deposit is <b>refunded in full</b> to your card automatically, and we’ll email you.
 </td></tr></table>` +
-        p(`The remaining <b>${formatMoney(b.balance)}</b> is paid ${BALANCE_WHEN}. Questions in the meantime? Just reply to this email.`),
+        p(`The remaining <b>${formatMoney(b.balance)}</b> is paid ${BALANCE_WHEN}. Questions in the meantime? Just reply to this email.`) +
+        cancel.html,
     ),
     text: `Thank you! We've received your deposit of ${formatMoney(b.deposit)}.
 ${textStay(b)}
 
 Your dates are reserved while ${brand.host} confirms the booking (${HOST_REPLY}). You'll receive the confirmation with a PDF and arrival details by email. If it can't be confirmed, the deposit is refunded in full automatically.
-The remaining ${formatMoney(b.balance)} is paid ${BALANCE_WHEN}.`,
+The remaining ${formatMoney(b.balance)} is paid ${BALANCE_WHEN}.${cancel.text}`,
   };
 }
 
 export function guestConfirmed(b: Booking) {
+  const cancel = cancelBlock(b);
   const rules = HOUSE_RULES[b.property].map((r) => `<li style="margin:0 0 6px">${esc(r)}</li>`).join("");
   return {
     subject: `Booking confirmed · ${HOUSE_NAMES[b.property]} · ${formatLong(b.checkIn)}`,
@@ -181,9 +200,10 @@ export function guestConfirmed(b: Booking) {
       p(`Great news, ${esc(b.name.split(" ")[0])}! ${esc(brand.host)} has confirmed your stay. Your deposit of <b>${formatMoney(b.deposit)}</b> is already paid.`) +
         rows([...stayRows(b), ["Address", esc(HOUSE_PLACES[b.property])], ...moneyRows(b, "deposit-paid")]) +
         p(`The remaining <b>${formatMoney(b.balance)}</b> is paid <b>${BALANCE_WHEN}</b>. Please have it ready in euros when you arrive. Your booking confirmation is attached as a PDF.`) +
-        `<p style="margin:16px 0 6px;font-weight:600">House rules</p><ul style="margin:0 0 12px;padding-left:18px;font-size:14px;line-height:1.5">${rules}</ul>`,
+        `<p style="margin:16px 0 6px;font-weight:600">House rules</p><ul style="margin:0 0 12px;padding-left:18px;font-size:14px;line-height:1.5">${rules}</ul>` +
+        cancel.html,
     ),
-    text: `Your booking is confirmed!\n${textStay(b)}\nAddress: ${HOUSE_PLACES[b.property]}\nThe remaining ${formatMoney(b.balance)} is paid ${BALANCE_WHEN}. Confirmation PDF attached.`,
+    text: `Your booking is confirmed!\n${textStay(b)}\nAddress: ${HOUSE_PLACES[b.property]}\nThe remaining ${formatMoney(b.balance)} is paid ${BALANCE_WHEN}. Confirmation PDF attached.${cancel.text}`,
   };
 }
 
@@ -196,6 +216,25 @@ export function guestBalancePaid(b: Booking) {
         rows([...stayRows(b), ...moneyRows(b, "paid")]),
     ),
     text: `Thank you! Your stay is fully paid.\n${textStay(b)}\nUpdated confirmation attached.`,
+  };
+}
+
+/** The guest cancelled with their link, in time: the deposit is refunded. */
+export function guestCancelledRefunded(b: Booking, refunded?: number) {
+  const first = b.name.split(" ")[0];
+  const estimate = cancellationRefund(b.deposit);
+  const refund = refunded ?? estimate.refund;
+  const fee = Math.round((b.deposit - refund) * 100) / 100;
+  return {
+    subject: `Booking cancelled, deposit refunded · ${HOUSE_NAMES[b.property]} · ${b.ref}`,
+    html: layout(
+      "Your booking is cancelled",
+      p(`Hello ${esc(first)}, as you asked, we’ve cancelled your stay at ${esc(HOUSE_NAMES[b.property])}. We’ve refunded <b>${formatMoney(refund)}</b> to your card: your deposit of ${formatMoney(b.deposit)} minus the ${formatMoney(fee)} card payment fee charged by Stripe. It usually shows on your statement within 5 to 10 working days.`) +
+        rows(stayRows(b)) +
+        p(`We’d love to welcome you another time.`) +
+        button(`${getSiteUrl()}/${b.property === "kaja" ? "villa-kaja" : "janis"}#stay`, "See other dates"),
+    ),
+    text: `Your booking ${b.ref} is cancelled. We have refunded ${formatMoney(refund)} to your card (your deposit of ${formatMoney(b.deposit)} minus the ${formatMoney(fee)} Stripe card fee); it usually shows within 5 to 10 working days.\n${textStay(b)}`,
   };
 }
 

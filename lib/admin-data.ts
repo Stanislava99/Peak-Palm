@@ -165,8 +165,8 @@ export type Money = {
  * (non-EEA cards cost more). Edit these if your rates differ.
  */
 export const AIRBNB_HOST_FEE = 0.155;
-export const STRIPE_PERCENT = 0.015;
-export const STRIPE_FIXED = 0.25;
+export { STRIPE_FEE_PERCENT as STRIPE_PERCENT, STRIPE_FEE_FIXED as STRIPE_FIXED } from "./booking-config";
+import { STRIPE_FEE_FIXED as STRIPE_FIXED, STRIPE_FEE_PERCENT as STRIPE_PERCENT, cancellationRefund } from "./booking-config";
 export const stripeFee = (amount: number) => (amount > 0 ? amount * STRIPE_PERCENT + STRIPE_FIXED : 0);
 
 const empty = (): Money => ({
@@ -179,6 +179,11 @@ export function money(bookings: Booking[]): Money {
   let lead = 0;
   let declined = 0;
   for (const b of bookings) {
+    if (b.status === "cancelled") {
+      m.refunded += cancellationRefund(b.deposit).refund;
+      m.stripeFees += stripeFee(b.deposit);
+      continue;
+    }
     if (b.status === "declined") {
       m.refunded += b.deposit;
       m.stripeFees += stripeFee(b.deposit);

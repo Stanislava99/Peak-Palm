@@ -86,8 +86,11 @@ export default function PrivacyPage() {
             </tbody>
           </table>
           <p>
-            We don’t use advertising or analytics trackers, and the site sets no cookies for visitors. We never sell your details or
-            share them for others’ marketing.
+            To see how the website is used, we count visits with Umami, a privacy-friendly analytics service: which pages are
+            opened, where visitors come from, browser, device type and country, and steps such as opening the calendar, starting a
+            booking. It uses no cookies, doesn’t store your IP address, and we never send it your name,
+            email, phone or booking details, so it can’t tell us who you are (legitimate interest). We don’t use advertising
+            trackers, and the site sets no cookies for visitors. We never sell your details or share them for others’ marketing.
           </p>
         </section>
 
@@ -96,6 +99,7 @@ export default function PrivacyPage() {
           <ul>
             <li>Stripe, which processes card payments and refunds.</li>
             <li>Vercel, which hosts the website, and Neon, which hosts our booking database.</li>
+            <li>Umami, which gives us anonymous visit statistics (no cookies, no IP addresses stored).</li>
             <li>Our email provider, to send booking emails and replies.</li>
             <li>OpenStreetMap, which shows the map on the house pages (your browser loads it from them).</li>
             <li>Our accountant and public authorities, when the law requires it (for example tax and guest registration).</li>
@@ -115,6 +119,7 @@ export default function PrivacyPage() {
             <li>Your agreement to receive offers: until you unsubscribe. After that we only keep a note that you unsubscribed, so we don’t email you again.</li>
             <li>Reviews: while they are on the website, or until you ask us to remove them.</li>
             <li>IP addresses used against spam and fraud: deleted after 2 days.</li>
+            <li>Anonymous visit statistics: kept by Umami for up to 6 months.</li>
           </ul>
         </section>
 
@@ -141,9 +146,9 @@ export default function PrivacyPage() {
         </section>
 
         <section>
-          <h2>Bookings on Airbnb and Booking.com</h2>
+          <h2>Bookings on other booking platforms</h2>
           <p>
-            If you book through Airbnb or Booking.com, that platform’s privacy policy covers what you give them. We use the details they
+            If you book through another booking platform, that platform’s privacy policy covers what you give them. We use the details they
             pass on to us only to host your stay.
           </p>
         </section>

@@ -42,7 +42,7 @@ function daysOf(from: string, to: string) {
 export type OtherChannels = Record<PropertyId, { airbnb: Set<string>; booking: Set<string> }>;
 
 type Item =
-  | { type: "direct"; key: string; start: string; end: string; booking: Booking }
+  | { type: "direct"; key: string; start: string; end: string; booking: Booking; count?: number }
   | { type: "other"; key: string; start: string; end: string; channel: "airbnb" | "booking" };
 
 /** Puts overlapping items on separate lines (only happens on the test site, where dates never block). */
@@ -166,8 +166,20 @@ export function BookingCalendar({
           // Direct stays you've blocked on Airbnb are already drawn as direct bars.
           const bookingNights = [...o.booking].filter((n) => n >= from && n < to && !directNights.has(n));
           const airbnbNights = [...o.airbnb].filter((n) => n >= from && n < to && !directNights.has(n) && !o.booking.has(n));
+          // Guests on the payment page right now: overlapping attempts are merged into one bar
+          // ("Paying now · 3"), so a guest who reopens checkout doesn't fill the calendar.
+          const holds = mine.filter((b) => kindOf(b) === "hold").sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+          const holdGroups: Array<{ start: string; end: string; booking: Booking; count: number }> = [];
+          for (const h of holds) {
+            const last = holdGroups[holdGroups.length - 1];
+            if (last && h.checkIn < last.end) {
+              last.end = h.checkOut > last.end ? h.checkOut : last.end;
+              last.count += 1;
+            } else holdGroups.push({ start: h.checkIn, end: h.checkOut, booking: h, count: 1 });
+          }
           const items: Item[] = [
-            ...mine.map((b) => ({ type: "direct" as const, key: b.ref, start: b.checkIn, end: b.checkOut, booking: b })),
+            ...mine.filter((b) => kindOf(b) !== "hold").map((b) => ({ type: "direct" as const, key: b.ref, start: b.checkIn, end: b.checkOut, booking: b })),
+            ...holdGroups.map((g) => ({ type: "direct" as const, key: `hold-${g.start}`, start: g.start, end: g.end, booking: g.booking, count: g.count })),
             ...nightRanges(bookingNights).map((r) => ({ type: "other" as const, key: `bk-${r.start}`, ...r, channel: "booking" as const })),
             ...nightRanges(airbnbNights).map((r) => ({ type: "other" as const, key: `ab-${r.start}`, ...r, channel: "airbnb" as const })),
           ];
@@ -217,11 +229,14 @@ export function BookingCalendar({
                 const b = item.booking;
                 const kind = kindOf(b);
                 const first = b.name.trim().split(/\s+/)[0] || "Guest";
-                const label = `${b.name}, ${b.checkIn} to ${b.checkOut}, ${b.guests} guests, ${LABEL[kind]}`;
+                const label =
+                  kind === "hold" && (item.count ?? 1) > 1
+                    ? `${item.count} guests are on the payment page for these dates right now (not paid yet)`
+                    : `${b.name}, ${b.checkIn} to ${b.checkOut}, ${b.guests} guests, ${LABEL[kind]}`;
                 return kind === "hold" ? (
                   <span key={item.key} className={`cal-bar is-hold${cut}`} style={style} title={label}>
                     <b className="cal-chan">{MARK[kind]}</b>
-                    {first}
+                    {(item.count ?? 1) > 1 ? `Paying now · ${item.count}` : `${first} paying`}
                   </span>
                 ) : (
                   <a key={item.key} href={link({ b: b.ref })} className={`cal-bar is-${kind}${cut}`} style={style} title={label} aria-label={label}>

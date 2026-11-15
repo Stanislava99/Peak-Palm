@@ -70,7 +70,7 @@ export default async function VillaKajaPage() {
       () => ({
         days: [] as CalendarDay[],
         sources: { booking: "not-configured" } as CalendarSources,
-        error: "Airbnb’s calendar did not respond. You can still open the listing to check dates.",
+        error: "The live calendar did not respond just now. Ask the host about your dates below.",
       }),
     ),
   ]);
@@ -93,14 +93,14 @@ export default async function VillaKajaPage() {
               <a className="rating-pill" href={AIRBNB_URL} target="_blank" rel="noreferrer">
                 <Stars score={rating.score} size={15} />
                 <strong>{rating.score.toFixed(2)}</strong>
-                <em>{rating.count} reviews on Airbnb</em>
+                <em>{rating.count} guest reviews</em>
               </a>
             </div>
             <div className="hero-actions">
               <a className="hero-cta" href="#stay">
                 Book direct and save {DIRECT_DISCOUNT_LABEL}
               </a>
-              <span className="hero-note">{DIRECT_DISCOUNT_LABEL} below the Airbnb price for the same dates</span>
+              <span className="hero-note">{DIRECT_DISCOUNT_LABEL} below booking platforms for the same dates</span>
             </div>
           </div>
         </section>
@@ -123,10 +123,7 @@ export default async function VillaKajaPage() {
               bedrooms, the open living and dining room, the kitchen, ski storage, and the sauna.
             </p>
             <p>
-              Host Frosina is a Superhost.
-              {rating.live
-                ? " The Airbnb score on this page is read from the live listing."
-                : " The Airbnb score shown here was last confirmed at 4.94 from 114 reviews."}
+              Host Frosina looks after every stay herself.
             </p>
             <ul className="house-points">
               <li>Exclusive use for one group</li>
@@ -180,7 +177,7 @@ export default async function VillaKajaPage() {
           kicker="Whole chalet · up to 15 guests"
           finePrint="Check-in after 4:00 pm. Check-out by 11:00 am. The house is reserved for your group only."
           airbnbUrl={AIRBNB_URL}
-          intro={`Pick your dates and guests to see your direct price, ${DIRECT_DISCOUNT_LABEL} below Airbnb. At checkout you pay a 50% deposit (the rest in cash at check-in); the host then confirms your booking by email.`}
+          intro={`Pick your dates and guests to see your direct price, ${DIRECT_DISCOUNT_LABEL} below booking platforms. At checkout you pay a 50% deposit (the rest paid on site, on arrival); the host then confirms your booking by email.`}
           initialDays={calendar.days}
           initialError={calendar.error}
           initialSources={calendar.sources}
@@ -203,6 +200,11 @@ export default async function VillaKajaPage() {
               <li>Town restaurants and bars · nearby</li>
               <li>Quiet hours overnight on a residential street</li>
             </ul>
+            {house.registration ? (
+              <p className="house-reg">
+                Registered tourist accommodation · {house.registration.label} {house.registration.number}
+              </p>
+            ) : null}
             <a
               className="text-link"
               href="https://www.google.com/maps/search/?api=1&query=18+Sveti+Ivan+Rilski+Street+Bansko"
@@ -228,7 +230,6 @@ export default async function VillaKajaPage() {
             name: "Villa Kaja",
             url: `${getSiteUrl()}/villa-kaja`,
             image: `${getSiteUrl()}/photos/01-exterior.jpg`,
-            sameAs: AIRBNB_URL,
             description:
               "Private holiday chalet in Bansko for up to 15 guests, with five bedrooms, a private sauna, and gondola access on foot.",
             address: {

@@ -1,4 +1,3 @@
-import { brand } from "@/lib/brand";
 import type { Review } from "@/lib/reviews";
 import { Icon, type IconName } from "./Icons";
 import { ReviewDeck } from "./ReviewDeck";
@@ -89,14 +88,9 @@ export function GuestScore({
         <Stars score={score} size={22} />
         <p className="rating-verdict">{verdict(score)}</p>
         <p className="rating-meta">
-          From {count} guest reviews on Airbnb{live ? ", read from the live listing" : ""}.
+          From {count} guest reviews.
           {best ? ` Highest marks for ${best.label.toLowerCase()}.` : ""}
         </p>
-        {superhost ? (
-          <p className="rating-host">
-            <Icon name="star" size={16} /> {brand.host} is an Airbnb Superhost
-          </p>
-        ) : null}
         {withReviews ? cats : (
           <a className="rating-link" href={airbnbUrl} target="_blank" rel="noreferrer">
             Read the reviews on Airbnb <Icon name="arrow" size={16} />

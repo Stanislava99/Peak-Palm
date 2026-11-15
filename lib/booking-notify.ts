@@ -2,7 +2,7 @@ import type Stripe from "stripe";
 import type { Booking } from "./bookings";
 import { sendEmail } from "./email";
 import { sendOnce } from "./send-once";
-import { adminEvent, adminNewRequest, guestConfirmed, guestDeclinedRefunded, guestDepositReceived } from "./email-templates";
+import { adminEvent, adminNewRequest, guestCancelledRefunded, guestConfirmed, guestDeclinedRefunded, guestDepositReceived } from "./email-templates";
 import { confirmationPdf } from "./pdf/confirmation";
 import { notifyEmails } from "./site-config";
 
@@ -47,6 +47,18 @@ export async function notifyDeclined(stripe: Stripe, booking: Booking) {
   return once(stripe, booking.paymentIntentId, "mailedDeclined", async () => {
     const guest = await sendEmail({ to: [booking.email], ...guestDeclinedRefunded(booking) });
     const admin = await sendEmail({ to: notifyEmails(), ...adminEvent(booking, "Booking declined, deposit refunded") });
+    return guest.sent && admin.sent;
+  });
+}
+
+/** The guest cancelled with their link within the free window: deposit refunded, hosts told. */
+export async function notifyCancelled(stripe: Stripe, booking: Booking, refunded?: number) {
+  return once(stripe, booking.paymentIntentId, "mailedCancelled", async () => {
+    const guest = await sendEmail({ to: [booking.email], ...guestCancelledRefunded(booking, refunded) });
+    const admin = await sendEmail({
+      to: notifyEmails(),
+      ...adminEvent(booking, `Guest cancelled within 48 hours, deposit refunded minus the Stripe fee${refunded !== undefined ? ` (${(booking.deposit - refunded).toFixed(2)} € kept, ${refunded.toFixed(2)} € refunded)` : ""}. Please free the dates on Airbnb and Booking.com if you blocked them.`),
+    });
     return guest.sent && admin.sent;
   });
 }

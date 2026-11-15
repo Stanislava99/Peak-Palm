@@ -27,7 +27,7 @@ export function HouseGate() {
         </div>
       </div>
       <a className="gate-pane winter" href="/villa-kaja" {...hover("peak")}>
-        <Image src="/photos/01-exterior.jpg" alt="" fill priority sizes="100vw" />
+        <Image src="/photos/gate/bansko.jpg" alt="" fill priority sizes="100vw" />
         <span className="gate-shade" />
         <span className="gate-copy">
           <em>Ski · Winter</em>
@@ -39,7 +39,7 @@ export function HouseGate() {
         </span>
       </a>
       <a className="gate-pane summer" href="/janis" {...hover("palm")}>
-        <Image src="/photos/janis/01-cover.jpg" alt="" fill priority sizes="100vw" />
+        <Image src="/photos/gate/sea.jpg" alt="" fill priority sizes="100vw" />
         <span className="gate-shade" />
         <span className="gate-copy">
           <em>Sea · Summer</em>

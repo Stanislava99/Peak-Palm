@@ -4,6 +4,12 @@ export const janisRooms = ["All", "Beach", "Terrace", "Yard", "Living", "Kitchen
 
 export const janisPhotos: Photo[] = [
   {
+    src: "/photos/janis/00-front.jpg",
+    alt: "Jani’s Beach House from the front: white balconies, palm trees and the sea at the end of the paved lane",
+    caption: "The house, with the sea at the end of the lane",
+    room: "Beach",
+  },
+  {
     src: "/photos/janis/01-cover.jpg",
     alt: "Palm trees and a paved path leading from the house to the sandy beach and the Thermaic Gulf",
     caption: "The path down to the beach",

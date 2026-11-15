@@ -14,6 +14,11 @@ export function Footer({ address }: { address?: string }) {
           <h4>Ski · Bansko</h4>
           <a href="/villa-kaja">Villa Kaja</a>
           <span>Bansko, Bulgaria</span>
+          {properties.kaja.registration ? (
+            <span className="footer-reg">
+              {properties.kaja.registration.label} {properties.kaja.registration.number}
+            </span>
+          ) : null}
           <a href={properties.kaja.airbnbUrl} target="_blank" rel="noreferrer">
             On Airbnb
           </a>
@@ -22,6 +27,11 @@ export function Footer({ address }: { address?: string }) {
           <h4>Sea · Greece</h4>
           <a href="/janis">Jani’s Beach House</a>
           <span>Neoi Epivates, Greece</span>
+          {properties.janis.registration ? (
+            <span className="footer-reg">
+              {properties.janis.registration.label} {properties.janis.registration.number}
+            </span>
+          ) : null}
           <a href={properties.janis.airbnbUrl} target="_blank" rel="noreferrer">
             On Airbnb
           </a>

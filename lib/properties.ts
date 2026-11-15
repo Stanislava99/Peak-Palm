@@ -24,6 +24,11 @@ export type Property = {
   reservePrefix: string;
   ratingFallback: RatingFallback;
   bookingFallback: { scoreLabel: string; reviewCount: number } | null;
+  /**
+   * Official short-term rental registration, shown wherever the house is advertised (house page, footer).
+   * Greece: AMA from the AADE Short-Term Rental Registry. Bulgaria: the municipal registration/category certificate.
+   */
+  registration: { label: string; number: string } | null;
 };
 
 const kajaRating: RatingFallback = {
@@ -65,6 +70,7 @@ export const properties: Record<PropertyId, Property> = {
     reservePrefix: "VK",
     ratingFallback: kajaRating,
     bookingFallback: { scoreLabel: "Exceptional", reviewCount: 16 },
+    registration: { label: "Reg. No.", number: "Б3-02А-0СТ-С0" },
   },
   janis: {
     id: "janis",
@@ -76,6 +82,7 @@ export const properties: Record<PropertyId, Property> = {
     reservePrefix: "JB",
     ratingFallback: janisRating,
     bookingFallback: null,
+    registration: { label: "AMA", number: "00000661253" },
   },
 };
 

@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import type { PropertyId } from "@/lib/properties";
+import { track } from "@/lib/track";
 
 /** The ask-a-question form (used inside the "Meet your host" section). */
 export function AskForm({ property, hostName }: { property: PropertyId; hostName: string }) {
@@ -27,6 +28,7 @@ export function AskForm({ property, hostName }: { property: PropertyId; hostName
         setError(data.error ?? "The question could not be sent.");
         return;
       }
+      track("Question sent", { house: property });
       setSent(true);
     } catch {
       setError("The question could not be sent. Try again in a moment.");

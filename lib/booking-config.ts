@@ -6,19 +6,43 @@ export const DEPOSIT_LABEL = `${Math.round(DEPOSIT_RATE * 100)}%`;
 
 /** Card holds expire after about 7 days, so the host must accept before then. */
 export const HOLD_DAYS = 7;
-/** The other half is paid in cash at the house. */
-export const BALANCE_WHEN = "in cash at check-in";
+/** The other half is paid on site, on arrival. */
+export const BALANCE_WHEN = "paid on site, on arrival";
 /** What the guest is told about response time. */
 export const HOST_REPLY = "within 48 hours";
 
+/** Guests may cancel within this many hours of paying the deposit and get it back, minus Stripe's fee. */
+export const CANCEL_HOURS = 48;
+
+/** Stripe's fee for a standard European card payment, which Stripe keeps when a payment is refunded. */
+export const STRIPE_FEE_PERCENT = 0.015;
+export const STRIPE_FEE_FIXED = 0.25;
+export const STRIPE_FEE_LABEL = "1.5% + €0.25";
+
+/** Stripe's fee on an amount, in euros, rounded to the cent. */
+export function stripeFeeOn(amount: number) {
+  return amount > 0 ? Math.round((amount * STRIPE_FEE_PERCENT + STRIPE_FEE_FIXED) * 100) / 100 : 0;
+}
+
 /**
- * ⚠️ PLACEHOLDER — replace with your real cancellation policy before going live.
- * Shown on the checkout page and the guest must accept it.
+ * Estimate of what a guest gets back when they cancel (standard European card fee). The refund itself
+ * uses the fee Stripe actually charged (lib/stripe-fee.ts), so a cancellation costs the hosts nothing. (A booking the host declines is always refunded in full.)
+ */
+export function cancellationRefund(deposit: number) {
+  const fee = Math.min(stripeFeeOn(deposit), deposit);
+  return { fee, refund: Math.round((deposit - fee) * 100) / 100 };
+}
+
+/** Shown above the policy on the checkout page and the cancel page. */
+export const CANCELLATION_INTRO = "Due to the seasonal nature of both properties, we have a strict cancellation policy:";
+
+/**
+ * The cancellation policy (decided 10 Nov 2026). Shown on the checkout page (the guest must accept it),
+ * the confirmation PDF and the cancel page. Guests cancel with the link in their "Deposit received" email.
  */
 export const CANCELLATION_POLICY = [
-  "Free cancellation up to 30 days before check-in: the deposit is refunded in full.",
-  "Cancelling within 30 days of check-in: the deposit is not refunded.",
-  "The remaining 50% is paid in cash at check-in.",
+  `Guests may cancel within ${CANCEL_HOURS} hours of making the reservation and receive a refund of the deposit, minus the card payment fee Stripe charged on it (about ${STRIPE_FEE_LABEL} for European cards; more for other cards or currencies).`,
+  `Cancellations after ${CANCEL_HOURS} hours of reservation are non-refundable.`,
 ];
 
 export const HOUSE_RULES: Record<PropertyId, string[]> = {

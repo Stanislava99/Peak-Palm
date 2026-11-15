@@ -13,6 +13,7 @@ import { after } from "next/server";
 import { dbConfigured } from "@/lib/db";
 import { markPaid } from "@/lib/booking-store";
 import { notifyDepositPaid } from "@/lib/booking-notify";
+import { TrackOnce } from "@/components/TrackOnce";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Booking received", robots: { index: false, follow: false } };
@@ -55,6 +56,18 @@ export default async function SuccessPage({ searchParams }: { searchParams: Prom
       <main className="checkout" id="top">
         {booking ? (
           <div className="success-card">
+            <TrackOnce
+              event="Booking paid"
+              onceKey={booking.ref}
+              data={{
+                house: booking.property,
+                nights: Math.round((Date.parse(booking.checkOut) - Date.parse(booking.checkIn)) / 86_400_000),
+                guests: booking.guests,
+                deposit: Math.round(booking.deposit),
+                revenue: Math.round(booking.directTotal),
+                currency: "EUR",
+              }}
+            />
             <span className="success-icon">
               <Icon name="check" size={34} />
             </span>
@@ -85,7 +98,7 @@ export default async function SuccessPage({ searchParams }: { searchParams: Prom
             <p className="success-next">
               We’ve emailed a receipt to <b>{booking.email}</b>. Your booking confirmation, with a PDF, follows as soon as{" "}
               {brand.host} confirms. If the dates can’t be confirmed, your deposit is refunded in full. The remaining{" "}
-              {formatMoney(booking.balance)} is paid in cash at check-in.
+              {formatMoney(booking.balance)} is paid on site, on arrival.
             </p>
             <a className="button primary" href="/">
               Back to {brand.short}

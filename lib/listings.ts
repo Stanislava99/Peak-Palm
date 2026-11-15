@@ -69,7 +69,48 @@ export async function fetchAirbnbRating(id: PropertyId = "kaja"): Promise<Airbnb
   }
 }
 
+/** How far ahead the calendar shows when it comes from the iCal export (Airbnb's own feed covers ~1 year). */
+const ICAL_DAYS_AHEAD = 365;
+
+/**
+ * Airbnb availability. Uses the official iCal export link when it is set (AIRBNB_ICAL_KAJA/JANIS);
+ * minimum stays then come from admin → Prices (iCal doesn't carry them). Falls back to reading
+ * Airbnb's public calendar when no link is set or the link doesn't answer.
+ */
 export async function fetchAirbnbCalendar(id: PropertyId = "kaja"): Promise<CalendarDay[]> {
+  const { fetchAirbnbIcalNights } = await import("./ical");
+  const taken = await fetchAirbnbIcalNights(id);
+  if (taken) return calendarFromNights(id, taken);
+  return fetchAirbnbCalendarFromPage(id);
+}
+
+async function calendarFromNights(id: PropertyId, taken: Set<string>): Promise<CalendarDay[]> {
+  const rules = await minimumStayRules(id);
+  const start = new Date();
+  start.setUTCDate(1);
+  const days: CalendarDay[] = [];
+  for (let i = 0; i < ICAL_DAYS_AHEAD + 31; i += 1) {
+    const date = new Date(start.getTime() + i * 86_400_000).toISOString().slice(0, 10);
+    const free = !taken.has(date);
+    days.push({ date, available: free, checkin: free, checkout: true, minNights: rules(date), maxNights: 28 });
+  }
+  return days;
+}
+
+/** Minimum nights for a check-in date, from admin → Prices (newest period covering it, else the house default, else 1). */
+async function minimumStayRules(id: PropertyId): Promise<(date: string) => number> {
+  try {
+    const { dbConfigured } = await import("./db");
+    if (!dbConfigured()) return () => 1;
+    const { getPriceList, minimumNights } = await import("./price-list");
+    const list = await getPriceList();
+    return (date) => minimumNights(list, id, date);
+  } catch {
+    return () => 1;
+  }
+}
+
+async function fetchAirbnbCalendarFromPage(id: PropertyId): Promise<CalendarDay[]> {
   const now = new Date();
   const url = new URL("https://www.airbnb.com/api/v2/homes_pdp_availability_calendar");
   url.searchParams.set("currency", "EUR");

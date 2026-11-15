@@ -22,7 +22,7 @@ export function HostLogin({ needsCode, emailLogin, passwordLogin }: { needsCode:
     });
     const data = (await response.json().catch(() => ({}))) as { ok?: boolean; message?: string; error?: string };
     setBusy(false);
-    if (!response.ok) return setError(data.error ?? "That didn’t work.");
+    if (!response.ok) return setError(data.error ?? "Sorry, that didn’t go through. Please try again.");
     if (mode === "email") setNotice(data.message ?? "Check your inbox.");
     else window.location.reload();
   }
@@ -111,7 +111,7 @@ export function VerifyLogin({ needsCode }: { needsCode: boolean }) {
       return;
     }
     setBusy(false);
-    setError(data.error ?? "That didn’t work.");
+    setError(data.error ?? "Sorry, that didn’t go through. Please try again.");
   }
 
   if (!token) {
@@ -171,7 +171,7 @@ export function HostActions({ id, status, balancePaid }: { id: string; status: s
     const data = (await response.json()) as { ok?: boolean; message?: string; error?: string; url?: string };
     setBusy(null);
     if (!response.ok || !data.ok) {
-      setError(data.error ?? "That didn’t work.");
+      setError(data.error ?? "Sorry, that didn’t go through. Please try again.");
       return;
     }
     setMessage(data.message ?? "Done.");
@@ -183,14 +183,15 @@ export function HostActions({ id, status, balancePaid }: { id: string; status: s
     <div className="host-actions">
       {status === "pending" ? (
         <>
-          <button className="button primary" type="button" disabled={Boolean(busy)} onClick={() => run("accept")}>
-            {busy === "accept" ? "Confirming…" : "Confirm booking & send confirmation"}
+          <button className="button primary" type="button" disabled={Boolean(busy)} onClick={() => run("accept")}
+            title="Confirms the stay and emails the guest their confirmation with the PDF">
+            {busy === "accept" ? "Confirming…" : "Confirm booking"}
           </button>
           <button
             className="button ghost"
             type="button"
             disabled={Boolean(busy)}
-            onClick={() => run("decline", "Decline this booking? The guest’s deposit will be refunded in full and they’ll be told by email.")}
+            onClick={() => run("decline", "Decline this booking?\n\nThe guest gets their full deposit back and a polite email letting them know.")}
           >
             {busy === "decline" ? "Declining…" : "Decline & refund"}
           </button>
@@ -201,19 +202,19 @@ export function HostActions({ id, status, balancePaid }: { id: string; status: s
           className="button primary"
           type="button"
           disabled={Boolean(busy)}
-          onClick={() => run("cash-received", "Mark the balance as received in cash?")}
+          onClick={() => run("cash-received", "Mark the balance as received?")}
         >
-          {busy === "cash-received" ? "Saving…" : "Balance received in cash"}
+          {busy === "cash-received" ? "Saving…" : "Balance received"}
         </button>
       ) : null}
       {status === "confirmed" && balancePaid ? (
         <button className="button ghost" type="button" disabled={Boolean(busy)} onClick={() => run("cash-undo", "Undo: mark the balance as not received?")}>
-          {busy === "cash-undo" ? "Saving…" : "Undo cash received"}
+          {busy === "cash-undo" ? "Saving…" : "Undo balance received"}
         </button>
       ) : null}
       {status === "pending" || status === "confirmed" ? (
-        <button className="button ghost" type="button" disabled={Boolean(busy)} onClick={() => run("resend-emails", status === "pending" ? "Send the “New booking” and “Deposit received” emails again?" : "Send the confirmation email with the PDF to the guest again?")}>
-          {busy === "resend-emails" ? "Sending…" : "Resend emails"}
+        <button className="host-link-btn" type="button" disabled={Boolean(busy)} onClick={() => run("resend-emails", status === "pending" ? "Send the “New booking” and “Deposit received” emails again?" : "Send the confirmation email with the PDF to the guest again?")}>
+          {busy === "resend-emails" ? "Sending…" : status === "pending" ? "Resend booking emails" : "Resend confirmation to guest"}
         </button>
       ) : null}
       {message ? <p className="host-ok">{message}</p> : null}
@@ -248,7 +249,7 @@ export function ReviewActions({ id, mode }: { id: string; mode: "request" | "pen
     });
     const data = (await response.json().catch(() => ({}))) as { ok?: boolean; message?: string; error?: string };
     setBusy(null);
-    if (!response.ok || !data.ok) return setError(data.error ?? "That didn’t work.");
+    if (!response.ok || !data.ok) return setError(data.error ?? "Sorry, that didn’t go through. Please try again.");
     setMessage(data.message ?? "Done.");
     window.setTimeout(() => window.location.reload(), 1200);
   }

@@ -128,7 +128,6 @@ export default async function HomePage() {
             addressLocality: "Bansko",
             addressCountry: "BG",
           },
-          sameAs: properties.kaja.airbnbUrl,
         },
       },
       {
@@ -146,7 +145,6 @@ export default async function HomePage() {
             addressRegion: "Thermaikos",
             addressCountry: "GR",
           },
-          sameAs: properties.janis.airbnbUrl,
         },
       },
     ],
@@ -162,13 +160,14 @@ export default async function HomePage() {
           <Mark className="intro-mark" />
           <p className="eyebrow">One host · two houses</p>
           <h2>
-            Snow in Bansko. Sand on the Thermaic Gulf.
+            Snow in Bansko, Bulgaria. Sea near Thessaloniki, Greece.
             <em> {brand.tagline}</em>
           </h2>
           <p>
             Sea &amp; Ski Villas brings together two private holiday houses looked after by {brand.host}. Each is
-            booked as a whole house for one group of family or friends: a chalet by the gondola for the ski season,
-            and a beach house on the sand for the summer.
+            booked as a whole house for one group of family or friends: a chalet by the gondola in Bansko, Bulgaria,
+            for the ski season, and a beach house in Neoi Epivates, near Thessaloniki in Greece, about 30 metres
+            from the beach, for the summer.
           </p>
           <ul className="motifs" aria-label="What Sea & Ski is about">
             {motifs.map(([icon, label]) => (
@@ -235,7 +234,7 @@ export default async function HomePage() {
             <p className="eyebrow">Booking with us</p>
             <h2>Book direct, pay {DIRECT_DISCOUNT_LABEL} less</h2>
             <p className="how-lede">
-              Every stay booked on this site costs {DIRECT_DISCOUNT_LABEL} less than the same dates on Airbnb. Same houses,
+              Every stay booked on this site costs {DIRECT_DISCOUNT_LABEL} less than the same dates on booking platforms. Same houses,
               same host, no platform in between.
             </p>
           </div>
@@ -243,17 +242,25 @@ export default async function HomePage() {
             <li>
               <Icon name="calendar" size={28} />
               <h3>Pick your dates</h3>
-              <p>Each house shows its open nights live. Choose yours to see the Airbnb price next to your direct price.</p>
+              <p>Each house shows its open nights live. Choose yours to see the booking-platform price next to your direct price.</p>
             </li>
             <li>
               <Icon name="chat" size={28} />
               <h3>Pay a 50% deposit</h3>
-              <p>Book at {DIRECT_DISCOUNT_LABEL} below Airbnb and pay half now by card. The rest is paid in cash at check-in.</p>
+              <p>Book at {DIRECT_DISCOUNT_LABEL} below booking platforms and pay half now by card. The rest is paid on site, on arrival.</p>
             </li>
             <li>
               <Icon name="key" size={28} />
               <h3>{brand.host} confirms</h3>
               <p>{brand.host} confirms within 48 hours and emails your confirmation. If she can’t, the deposit is refunded in full.</p>
+            </li>
+            <li>
+              <Icon name="lock" size={28} />
+              <h3>Pay securely</h3>
+              <p>
+                Card payments go through Stripe with 3-D Secure. Your card details go straight to Stripe; we never see or
+                store your card number.
+              </p>
             </li>
           </ol>
         </section>

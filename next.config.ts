@@ -15,6 +15,13 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Visitor analytics (Umami Cloud) served through this site, so the CSP stays 'self'.
+  async rewrites() {
+    return [
+      { source: "/stats/script.js", destination: "https://cloud.umami.is/script.js" },
+      { source: "/stats/api/send", destination: "https://cloud.umami.is/api/send" },
+    ];
+  },
   async redirects() {
     return [{ source: "/host", destination: "/admin", permanent: false }];
   },

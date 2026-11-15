@@ -18,11 +18,14 @@ export type StayQuote = {
   currency: typeof CURRENCY;
   nights: number;
   guests: number;
-  /** What the same stay costs on Airbnb, all fees included (before taxes if Airbnb shows it that way). */
-  airbnbTotal: number;
+  /** What the same stay costs on Airbnb, all fees included. Null when the price comes from the hosts' price list. */
+  airbnbTotal: number | null;
   airbnbLabel: string;
   directTotal: number;
-  savings: number;
+  /** Null when there is no Airbnb price to compare with. */
+  savings: number | null;
+  /** "airbnb": 10% below the live Airbnb price. "price-list": the hosts' own prices (Airbnb didn't answer). */
+  source: "airbnb" | "price-list";
   perNight: number;
   lines: QuoteLine[];
   fetchedAt: string;
@@ -95,7 +98,15 @@ export function parseAirbnbQuote(
   }
 
   if (total === null && lines.length) {
-    total = lines.reduce((sum, line) => sum + line.amount, 0);
+    // No "Total" line: add the lines up, but skip running subtotals such as "Price after discount" or
+    // "Subtotal", which already contain the lines above them (counting them doubled the price).
+    let running = 0;
+    for (const [i, line] of lines.entries()) {
+      const isSubtotal = /subtotal|after discount|^price after|total/i.test(line.label) || (i > 1 && Math.abs(line.amount - running) < 0.01);
+      if (isSubtotal) running = line.amount;
+      else running += line.amount;
+    }
+    total = running;
   }
 
   if (total === null) {
@@ -193,8 +204,14 @@ export async function requestSections(url: URL, key: string, revalidate = 1800) 
     },
     next: { revalidate },
   });
-  if (!response.ok) return null;
-  return response.json().catch(() => null);
+  if (!response.ok) {
+    console.warn("Airbnb sections request failed", { status: response.status, listing: url.pathname.split("/").pop()?.slice(0, 8) });
+    return null;
+  }
+  return response.json().catch(() => {
+    console.warn("Airbnb sections response was not JSON");
+    return null;
+  });
 }
 
 /** Live Airbnb total for these dates, and the direct price 10% below it. */
@@ -223,7 +240,10 @@ export async function fetchStayQuote(
         parsed = data ? parseAirbnbQuote(data, nights) : null;
       }
     }
-    if (!parsed) return noPrice;
+    if (!parsed) {
+      console.warn("Airbnb price missing", { property, checkIn, checkOut, guests, gotData: Boolean(data) });
+      return noPrice;
+    }
     if ("unavailable" in parsed) return { ok: false, reason: "unavailable", message: parsed.unavailable };
 
     const directTotal = directPrice(parsed.total);
@@ -237,12 +257,14 @@ export async function fetchStayQuote(
         airbnbLabel: parsed.label,
         directTotal,
         savings: Math.round(parsed.total - directTotal),
+        source: "airbnb",
         perNight: Math.round(directTotal / nights),
         lines: parsed.lines,
         fetchedAt: new Date().toISOString(),
       },
     };
-  } catch {
+  } catch (error) {
+    console.warn("Airbnb price request threw", (error as Error).message);
     return noPrice;
   }
 }

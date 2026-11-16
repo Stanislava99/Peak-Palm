@@ -51,6 +51,13 @@ export function Footer({ address }: { address?: string }) {
         <span>
           Hosted by {brand.host} · <a href="/privacy">Privacy</a>
         </span>
+        <a className="footer-credit" href="https://lunadigital.pro/index.html" target="_blank" rel="noopener">
+          Made by
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M20 3a13 13 0 1 0 9 22A11 11 0 0 1 20 3z" />
+          </svg>
+          <b>Luna Digital</b>
+        </a>
       </div>
     </footer>
   );

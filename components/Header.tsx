@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DIRECT_DISCOUNT_LABEL } from "@/lib/pricing";
+import { DEFAULT_DISCOUNT, discountLabel } from "@/lib/price-math";
 import { Lockup } from "./Logo";
 
 const sectionLinks = [
@@ -17,9 +17,12 @@ type Props = {
   sibling?: { href: string; label: string };
   /** House name shown beside the logo on house pages. */
   house?: string;
+  /** Direct-booking discount in % (admin → Prices). */
+  discount?: number;
 };
 
-export function Header({ sections = true, sibling, house }: Props) {
+export function Header({ sections = true, sibling, house, discount = DEFAULT_DISCOUNT }: Props) {
+  const DIRECT_DISCOUNT_LABEL = discountLabel(discount);
   const [solid, setSolid] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -39,11 +42,13 @@ export function Header({ sections = true, sibling, house }: Props) {
 
   return (
     <header className={`site-header ${solid || open ? "is-solid" : ""}`}>
+      {discount > 0 ? (
       <a className="promo-bar" href={sections ? "#stay" : "#houses"}>
         <b>Book direct, save {DIRECT_DISCOUNT_LABEL}.</b>
         <span> Same houses, same host, {DIRECT_DISCOUNT_LABEL} less than on booking platforms.</span>
         <i aria-hidden="true">→</i>
       </a>
+      ) : null}
       <div className="header-row">
       <a className="brand" href="/" aria-label="Sea & Ski Villas, home">
         <span className="brand-light">
@@ -70,7 +75,7 @@ export function Header({ sections = true, sibling, house }: Props) {
           </a>
         ) : null}
         <a className="nav-book" href={sections ? "#stay" : "#houses"} onClick={() => setOpen(false)}>
-          {sections ? `Book direct −${DIRECT_DISCOUNT_LABEL}` : "Choose a house"}
+          {sections ? (discount > 0 ? `Book direct −${DIRECT_DISCOUNT_LABEL}` : "Book direct") : "Choose a house"}
         </a>
       </nav>
       <button

@@ -11,7 +11,8 @@ import { fetchAirbnbReviews } from "@/lib/reviews";
 import { publishedDirectReviews } from "@/lib/guest-reviews";
 import { fetchAirbnbRating, type AirbnbRating, type CalendarDay } from "@/lib/listings";
 import { calendarWithSources, type CalendarSources } from "@/lib/reservations";
-import { DIRECT_DISCOUNT_LABEL } from "@/lib/pricing";
+import { houseDiscounts } from "@/lib/price-list";
+import { discountLabel } from "@/lib/price-math";
 import { paymentsEnabled } from "@/lib/stripe";
 import { getSiteUrl } from "@/lib/site";
 import Image from "next/image";
@@ -62,6 +63,8 @@ const categories: Array<[keyof AirbnbRating["categories"], string]> = [
 ];
 
 export default async function VillaKajaPage() {
+  const discount = (await houseDiscounts()).kaja;
+  const DIRECT_DISCOUNT_LABEL = discountLabel(discount);
   const [rating, reviews, calendar] = await Promise.all([
     fetchAirbnbRating(),
     Promise.all([publishedDirectReviews("kaja"), fetchAirbnbReviews("kaja")]).then(([direct, airbnb]) => [...direct, ...airbnb]),
@@ -76,7 +79,7 @@ export default async function VillaKajaPage() {
   ]);
   return (
     <>
-      <Header house="Villa Kaja" sibling={{ href: "/janis", label: "Sea · Greece" }} />
+      <Header discount={discount} house="Villa Kaja" sibling={{ href: "/janis", label: "Sea · Greece" }} />
       <main id="top">
         <section className="hero">
           <Image src="/photos/01-exterior.jpg" alt="Villa Kaja, a white and stone chalet with a balcony, on a cobbled street in Bansko" fill priority sizes="100vw" />
@@ -171,6 +174,7 @@ export default async function VillaKajaPage() {
         </section>
 
         <Availability
+          discount={discount}
           property="kaja"
           maxGuests={house.maxGuests}
           defaultGuests={10}

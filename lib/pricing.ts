@@ -18,13 +18,15 @@ export type StayQuote = {
   currency: typeof CURRENCY;
   nights: number;
   guests: number;
-  /** What the same stay costs on Airbnb, all fees included. Null when the price comes from the hosts' price list. */
+  /** What the same stay costs at Airbnb prices (before the direct discount). Null if unknown. */
   airbnbTotal: number | null;
   airbnbLabel: string;
   directTotal: number;
   /** Null when there is no Airbnb price to compare with. */
   savings: number | null;
-  /** "airbnb": 10% below the live Airbnb price. "price-list": the hosts' own prices (Airbnb didn't answer). */
+  /** The direct-booking discount on this stay, in % (e.g. 10). */
+  discountPct: number;
+  /** "price-list": the hosts' Airbnb prices entered in admin, less their discount. "airbnb": the live Airbnb price, less the discount. */
   source: "airbnb" | "price-list";
   perNight: number;
   lines: QuoteLine[];
@@ -257,6 +259,7 @@ export async function fetchStayQuote(
         airbnbLabel: parsed.label,
         directTotal,
         savings: Math.round(parsed.total - directTotal),
+        discountPct: DIRECT_DISCOUNT * 100,
         source: "airbnb",
         perNight: Math.round(directTotal / nights),
         lines: parsed.lines,

@@ -6,7 +6,8 @@ import type { CalendarSources } from "@/lib/reservations";
 import { DEPOSIT_LABEL } from "@/lib/booking-config";
 import { SecurePay } from "./SecurePay";
 import { Icon } from "./Icons";
-import { DIRECT_DISCOUNT_LABEL, formatMoney, type QuoteResult, type StayQuote } from "@/lib/pricing";
+import { discountLabel } from "@/lib/price-math";
+import { formatMoney, type QuoteResult, type StayQuote } from "@/lib/pricing";
 import { stayLink, type PropertyId } from "@/lib/properties";
 import { evaluateStay, formatLong, monthGrid, monthLabel } from "@/lib/stay";
 import { track } from "@/lib/track";
@@ -23,11 +24,14 @@ type Props = {
   initialError: string | null;
   initialSources: CalendarSources;
   paymentsOn: boolean;
+  /** The house's standard direct-booking discount in % (admin → Prices). */
+  discount: number;
 };
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export function Availability({
+  discount,
   property,
   maxGuests,
   defaultGuests,
@@ -40,6 +44,7 @@ export function Availability({
   initialSources,
   paymentsOn,
 }: Props) {
+  const DIRECT_DISCOUNT_LABEL = discountLabel(discount);
   const today = new Date().toISOString().slice(0, 10);
   const start = new Date();
   const [cursor, setCursor] = useState({ year: start.getFullYear(), month: start.getMonth() });
@@ -273,9 +278,11 @@ export function Availability({
         </div>
 
         <aside className="stay-card">
-          <p className="direct-badge">
-            <span>−{DIRECT_DISCOUNT_LABEL}</span> Book direct and pay {DIRECT_DISCOUNT_LABEL} less than on booking platforms
-          </p>
+          {discount > 0 ? (
+            <p className="direct-badge">
+              <span>−{DIRECT_DISCOUNT_LABEL}</span> Book direct and pay {DIRECT_DISCOUNT_LABEL} less than at Airbnb prices
+            </p>
+          ) : null}
           <p className="stay-kicker">{kicker}</p>
           <div className="guest-row">
             <span>Guests</span>
@@ -363,8 +370,8 @@ export function Availability({
         ) : (
           <>
             <span className="mobile-bar-price">
-              <strong>−{DIRECT_DISCOUNT_LABEL}</strong>
-              <small>vs booking platforms when you book here</small>
+              <strong>{discount > 0 ? `−${DIRECT_DISCOUNT_LABEL}` : "Book direct"}</strong>
+              <small>{discount > 0 ? "vs Airbnb prices when you book here" : "with the host, no platform fees"}</small>
             </span>
             <a href="#stay">Choose dates</a>
           </>
@@ -475,7 +482,7 @@ function PriceBox({
     return (
       <div className="price-box" aria-live="polite">
         <div className="price-row airbnb">
-          <span>On booking platforms</span>
+          <span>{quote.source === "price-list" ? "At Airbnb prices" : "On booking platforms"}</span>
           <s>{formatMoney(quote.airbnbTotal ?? 0)}</s>
         </div>
         <div className="price-row direct">
@@ -488,7 +495,7 @@ function PriceBox({
           <strong>{formatMoney(quote.directTotal)}</strong>
         </div>
         <p className="price-save">
-          You save <b>{formatMoney(quote.savings ?? 0)}</b> ({DIRECT_DISCOUNT_LABEL}) compared with booking platforms for the same dates.
+          You save <b>{formatMoney(quote.savings ?? 0)}</b> ({discountLabel(quote.discountPct)}) by booking direct.
         </p>
       </div>
     );

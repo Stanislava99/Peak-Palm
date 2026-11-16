@@ -1,16 +1,16 @@
 import { dbConfigured } from "@/lib/db";
 import { currentAdmin } from "@/lib/host-auth";
-import { addPeriod, deletePeriod, setDefaults } from "@/lib/price-list";
+import { addPeriod, clearRange, deletePeriod, setDefaults, setRange } from "@/lib/price-list";
 import { isPropertyId } from "@/lib/properties";
 import { NO_STORE, guard } from "@/lib/security";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
-/** House pages are cached for 30 minutes; refresh them so new minimum stays show at once. */
+/** Pages are cached for 30 minutes; refresh them so new prices, minimum stays and discounts show at once. */
 function refreshHousePages() {
-  revalidatePath("/villa-kaja");
-  revalidatePath("/janis");
+  // The whole site: house pages show prices, and every page's header shows the discount.
+  revalidatePath("/", "layout");
 }
 
 const fail = (error: string, status = 400) => NextResponse.json({ error }, { status, headers: NO_STORE });
@@ -21,6 +21,14 @@ function amount(value: unknown, { allowZero = false } = {}): number | null | "ba
   const n = typeof value === "number" ? value : Number(String(value).replace(",", "."));
   if (!Number.isFinite(n) || n < 0 || (!allowZero && n === 0) || n > 100_000) return "bad";
   return Math.round(n * 100) / 100;
+}
+
+/** Reads a discount in % (0–90, up to 1 decimal): "", null → null. */
+function percent(value: unknown): number | null | "bad" {
+  if (value === "" || value === null || value === undefined) return null;
+  const n = typeof value === "number" ? value : Number(String(value).replace(",", ".").replace("%", "").trim());
+  if (!Number.isFinite(n) || n < 0 || n > 90) return "bad";
+  return Math.round(n * 10) / 10;
 }
 
 /** Reads a whole number of nights (1–60): "", null → null. */
@@ -54,7 +62,9 @@ export async function POST(request: Request) {
     const extraGuest = amount(body.extraGuest, { allowZero: true });
     if (extraGuest === "bad") return fail("The extra-guest price must be a number (0 or more).");
     if (extraGuest && !includedGuests) return fail("Say how many guests the nightly price covers, so the site knows when extra guests start.");
-    await setDefaults(body.property, { nightly, cleaning: cleaning ?? 0, minNights: minNights ?? 1, includedGuests, extraGuest: extraGuest ?? 0 }, admin);
+    const discount = percent(body.discount);
+    if (discount === "bad") return fail("The discount must be a number from 0 to 90 (%).");
+    await setDefaults(body.property, { nightly, cleaning: cleaning ?? 0, minNights: minNights ?? 1, includedGuests, extraGuest: extraGuest ?? 0, discount: discount ?? 10 }, admin);
     refreshHousePages();
     return NextResponse.json({ ok: true, message: "Saved. The new prices apply to the next guest who looks at the calendar." }, { headers: NO_STORE });
   }
@@ -70,9 +80,34 @@ export async function POST(request: Request) {
     const label = String(body.label ?? "").trim().slice(0, 60);
     const minNights = nights(body.minNights);
     if (minNights === "bad") return fail("Minimum nights must be a whole number from 1 to 60.");
-    await addPeriod({ property: body.property, from, to, nightly, label, minNights }, admin);
+    await addPeriod({ property: body.property, from, to, nightly, label, minNights, discount: null }, admin);
     refreshHousePages();
     return NextResponse.json({ ok: true, message: "Price period added." }, { headers: NO_STORE });
+  }
+
+  if (body.action === "set-range" || body.action === "clear-range") {
+    if (typeof body.property !== "string" || !isPropertyId(body.property)) return fail("Choose a house.");
+    const from = String(body.from ?? "");
+    const to = String(body.to ?? "");
+    if (!DATE.test(from) || !DATE.test(to)) return fail("Choose the nights on the calendar first.");
+    if (to < from) return fail("The last night must be on or after the first night.");
+    if (Date.parse(to) - Date.parse(from) > 400 * 86_400_000) return fail("Please choose at most about a year at a time.");
+    if (body.action === "clear-range") {
+      await clearRange(body.property, from, to);
+      refreshHousePages();
+      return NextResponse.json({ ok: true, message: "Done. Those nights use the standard price again." }, { headers: NO_STORE });
+    }
+    const nightly = amount(body.nightly);
+    if (nightly === null || nightly === "bad") return fail("Enter a price per night above 0.");
+    const minNights = nights(body.minNights);
+    if (minNights === "bad") return fail("Minimum stay must be a whole number of nights from 1 to 60.");
+    const label = String(body.label ?? "").trim().slice(0, 60);
+    const discount = percent(body.discount);
+    if (discount === "bad") return fail("The discount must be a number from 0 to 90 (%), or empty for the standard discount.");
+    await setRange({ property: body.property, from, to, nightly, label, minNights, discount }, admin);
+    refreshHousePages();
+    const count = Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;
+    return NextResponse.json({ ok: true, message: `Saved. ${count === 1 ? "That night" : `Those ${count} nights`} now cost €${nightly} a night.` }, { headers: NO_STORE });
   }
 
   if (body.action === "delete-period") {

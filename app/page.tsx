@@ -7,7 +7,8 @@ import { Mark } from "@/components/Logo";
 import { brand } from "@/lib/brand";
 import { fetchAirbnbRating } from "@/lib/listings";
 import { properties } from "@/lib/properties";
-import { DIRECT_DISCOUNT_LABEL } from "@/lib/pricing";
+import { houseDiscounts } from "@/lib/price-list";
+import { discountLabel } from "@/lib/price-math";
 import { getSiteUrl } from "@/lib/site";
 import type { Metadata } from "next";
 
@@ -104,6 +105,10 @@ const motifs: Array<[IconName, string]> = [
 ];
 
 export default async function HomePage() {
+  const discounts = await houseDiscounts();
+  // Shared pages promise the lower of the two houses’ discounts, so the claim is true for both.
+  const discount = Math.min(discounts.kaja, discounts.janis);
+  const DIRECT_DISCOUNT_LABEL = discountLabel(discount);
   const site = getSiteUrl();
   const [kaja, janis] = await Promise.all([fetchAirbnbRating("kaja"), fetchAirbnbRating("janis")]);
   const ratings = [kaja, janis];
@@ -152,7 +157,7 @@ export default async function HomePage() {
 
   return (
     <div className="home">
-      <Header sections={false} />
+      <Header sections={false} discount={discount} />
       <main id="top">
         <HouseGate />
 

@@ -11,7 +11,8 @@ import {
   splitPayment,
 } from "@/lib/booking-config";
 import { brand } from "@/lib/brand";
-import { DIRECT_DISCOUNT_LABEL, formatMoney } from "@/lib/pricing";
+import { discountLabel } from "@/lib/price-math";
+import { formatMoney } from "@/lib/pricing";
 import { quoteStay } from "@/lib/stay-quote";
 import { getProperty, isPropertyId, type PropertyId } from "@/lib/properties";
 import { calendarWithSources } from "@/lib/reservations";
@@ -104,9 +105,9 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
           </a>
           <h1>Book {house.name}</h1>
           <p>
-            {quote?.source === "price-list"
-              ? "You’re booking direct with the host."
-              : `You’re booking direct with the host, ${DIRECT_DISCOUNT_LABEL} below booking platforms.`}
+            {quote?.savings
+              ? `You’re booking direct with the host, ${discountLabel(quote.discountPct)} below ${quote.source === "price-list" ? "Airbnb prices" : "booking platforms"}.`
+              : "You’re booking direct with the host."}
           </p>
         </div>
 
@@ -182,7 +183,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
               <div className="summary-price">
                 {quote!.airbnbTotal !== null ? (
                   <div className="price-row airbnb">
-                    <span>Same dates on booking platforms</span>
+                    <span>{quote!.source === "price-list" ? "Same dates at Airbnb prices" : "Same dates on booking platforms"}</span>
                     <s>{formatMoney(quote!.airbnbTotal)}</s>
                   </div>
                 ) : null}
@@ -195,7 +196,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                 </div>
                 {quote!.savings ? (
                   <p className="price-save">
-                    You save <b>{formatMoney(quote!.savings)}</b> by booking direct.
+                    You save <b>{formatMoney(quote!.savings)}</b> ({discountLabel(quote!.discountPct)}) by booking direct.
                   </p>
                 ) : null}
               </div>

@@ -1,4 +1,5 @@
 import { Header } from "@/components/Header";
+import { houseDiscounts } from "@/lib/price-list";
 import { CancelButton } from "@/components/CancelBooking";
 import { CANCEL_HOURS, CANCELLATION_INTRO, CANCELLATION_POLICY } from "@/lib/booking-config";
 import { guestCancellationRefund } from "@/lib/stripe-fee";
@@ -141,7 +142,7 @@ export default async function CancelPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="checkout-page">
-      <Header sections={false} />
+      <Header sections={false} discount={Math.min(...Object.values(await houseDiscounts()))} />
       <main className="checkout host" id="top">
         <div className="success-card cancel-card">
           <p className="eyebrow">Sea &amp; Ski Villas</p>

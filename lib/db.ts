@@ -195,6 +195,8 @@ alter table price_defaults add column if not exists min_nights int not null defa
 alter table price_periods add column if not exists min_nights int check (min_nights is null or min_nights between 1 and 60);
 alter table price_defaults add column if not exists included_guests int check (included_guests is null or included_guests between 1 and 30);
 alter table price_defaults add column if not exists extra_guest numeric(10,2) not null default 0 check (extra_guest >= 0);
+alter table price_defaults add column if not exists discount numeric(5,2) not null default 10 check (discount between 0 and 90);
+alter table price_periods add column if not exists discount numeric(5,2) check (discount is null or discount between 0 and 90);
 `;
 
 /**

@@ -1,4 +1,5 @@
 import { Header } from "@/components/Header";
+import { houseDiscounts } from "@/lib/price-list";
 import { UnsubscribeButton } from "@/components/Unsubscribe";
 import { readUnsubscribeToken } from "@/lib/marketing";
 import type { Metadata } from "next";
@@ -11,7 +12,7 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
   const email = readUnsubscribeToken(t);
   return (
     <div className="checkout-page">
-      <Header sections={false} />
+      <Header sections={false} discount={Math.min(...Object.values(await houseDiscounts()))} />
       <main className="checkout host" id="top">
         <div className="success-card">
           <p className="eyebrow">Sea &amp; Ski Villas</p>

@@ -1,4 +1,5 @@
 import { Footer } from "@/components/Footer";
+import { houseDiscounts } from "@/lib/price-list";
 import { Header } from "@/components/Header";
 import { ReviewForm } from "@/components/ReviewForm";
 import { bookingFromIntent } from "@/lib/bookings";
@@ -70,7 +71,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="checkout-page">
-      <Header sections={false} />
+      <Header sections={false} discount={Math.min(...Object.values(await houseDiscounts()))} />
       <main className="checkout" id="top">
         {content}
       </main>

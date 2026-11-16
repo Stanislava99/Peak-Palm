@@ -1,4 +1,5 @@
 import { Header } from "@/components/Header";
+import { houseDiscounts } from "@/lib/price-list";
 import { HostActions, HostLogin, HostLogout, ReviewActions } from "@/components/HostPanel";
 import { PriceListEditor } from "@/components/PriceListEditor";
 import { getPriceList } from "@/lib/price-list";
@@ -177,7 +178,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     const problem = hostSetupProblem(emailConfigured());
     return (
       <div className="checkout-page">
-        <Header sections={false} />
+        <Header sections={false} discount={Math.min(...Object.values(await houseDiscounts()))} />
         <main className="checkout host" id="top">
           <div className="success-card">
             <p className="eyebrow">{appEnv() === "test" ? "Test site" : "Sea & Ski"}</p>
@@ -1125,7 +1126,7 @@ async function PricesView({ today }: { today: string }) {
     <>
       <PageHead
         title="Prices"
-        sub="Guests normally see the live Airbnb price, 10% lower. If Airbnb doesn’t answer, the site uses the prices you set here. Enter the amount guests should pay on your site."
+        sub="Enter the same prices as on Airbnb. Guests on your site pay them minus your direct-booking discount, and see what they save."
       />
       {list ? (
         <PriceListEditor

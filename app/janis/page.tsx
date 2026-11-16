@@ -11,7 +11,8 @@ import { publishedDirectReviews } from "@/lib/guest-reviews";
 import { fetchAirbnbRating, type AirbnbRating, type CalendarDay } from "@/lib/listings";
 import { getProperty } from "@/lib/properties";
 import { calendarWithSources, type CalendarSources } from "@/lib/reservations";
-import { DIRECT_DISCOUNT_LABEL } from "@/lib/pricing";
+import { houseDiscounts } from "@/lib/price-list";
+import { discountLabel } from "@/lib/price-math";
 import { paymentsEnabled } from "@/lib/stripe";
 import { getSiteUrl } from "@/lib/site";
 import Image from "next/image";
@@ -67,6 +68,8 @@ const categories: Array<[keyof AirbnbRating["categories"], string]> = [
 ];
 
 export default async function JanisPage() {
+  const discount = (await houseDiscounts()).janis;
+  const DIRECT_DISCOUNT_LABEL = discountLabel(discount);
   const [rating, reviews, calendar] = await Promise.all([
     fetchAirbnbRating("janis"),
     Promise.all([publishedDirectReviews("janis"), fetchAirbnbReviews("janis")]).then(([direct, airbnb]) => [...direct, ...airbnb]),
@@ -82,7 +85,7 @@ export default async function JanisPage() {
 
   return (
     <>
-      <Header house="Jani’s Beach House" sibling={{ href: "/villa-kaja", label: "Ski · Bansko" }} />
+      <Header discount={discount} house="Jani’s Beach House" sibling={{ href: "/villa-kaja", label: "Ski · Bansko" }} />
       <main id="top">
         <section className="hero is-right">
           <Image src="/photos/janis/00-front.jpg" alt="Jani’s Beach House from the front: white balconies, palm trees and the sea at the end of the paved lane" fill priority sizes="100vw" style={{ objectPosition: "40% center" }} />
@@ -177,6 +180,7 @@ export default async function JanisPage() {
         </section>
 
         <Availability
+          discount={discount}
           property="janis"
           maxGuests={house.maxGuests}
           defaultGuests={6}

@@ -915,6 +915,11 @@ body { -webkit-font-smoothing: antialiased; }
   font-size: 0.85rem;
 }
 .theme-summer .site-footer { background: #163634; }
+/* "Made by Luna Digital" credit: their crescent mark, in a lighter indigo so it reads on the dark footer */
+.footer-credit { display: inline-flex; align-items: center; gap: 6px; color: inherit; text-decoration: none; min-height: 24px; }
+.footer-credit svg { width: 16px; height: 16px; fill: #818cf8; flex: none; }
+.footer-credit b { font-weight: 600; color: rgba(247, 243, 234, 0.85); }
+.footer-credit:hover b { text-decoration: underline; text-underline-offset: 3px; }
 
 /* Mobile booking bar on house pages */
 .mobile-bar { display: none; }

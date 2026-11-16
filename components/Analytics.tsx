@@ -68,6 +68,7 @@ export function Analytics({ websiteId }: { websiteId: string | null }) {
       src="/stats/script.js"
       strategy="afterInteractive"
       data-website-id={websiteId!}
+      data-host-url="/stats"
       data-exclude-search="true"
       data-exclude-hash="true"
     />

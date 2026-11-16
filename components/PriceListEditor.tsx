@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { extraGuestsFor, minimumNights, nightlyPrice, priceFromList, type PriceList } from "@/lib/price-math";
 
 type House = "kaja" | "janis";
@@ -24,8 +25,9 @@ async function send(body: Record<string, unknown>) {
 }
 
 /**
- * Admin → Prices. Standard prices per house (with extra-guest pricing), special dates,
- * a month price calendar and a "try a stay" calculator. All amounts are what guests pay here.
+ * Admin → Prices, laid out like Airbnb's pricing calendar: a month calendar per house with a side panel.
+ * Nothing selected → the house's standard prices; nights selected → set a price for just those nights.
+ * Below: the list of special prices and a "try a stay" calculator. All amounts are what guests pay here.
  */
 export function PriceListEditor({
   list,
@@ -39,60 +41,52 @@ export function PriceListEditor({
   taken: Record<House, string[]>;
   today: string;
 }) {
+  const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
 
-  async function run(key: string, body: Record<string, unknown>, confirmText?: string) {
-    if (confirmText && !window.confirm(confirmText)) return;
+  /** Saves, then refreshes the prices in place (the calendar keeps its month and house). */
+  async function run(key: string, body: Record<string, unknown>, confirmText?: string): Promise<boolean> {
+    if (confirmText && !window.confirm(confirmText)) return false;
     setBusy(key);
     setNote(null);
     try {
       const message = await send(body);
       setNote({ ok: true, text: message });
-      window.setTimeout(() => window.location.reload(), 900);
+      router.refresh();
+      return true;
     } catch (error) {
       setNote({ ok: false, text: (error as Error).message });
+      return false;
+    } finally {
       setBusy(null);
     }
   }
 
   return (
     <div className="price-admin">
-      {note ? (
-        <p className={`price-note ${note.ok ? "is-ok" : "is-bad"}`} role="status">
-          {note.text}
-        </p>
-      ) : null}
+      <PriceCalendar list={list} houses={houses} taken={taken} today={today} busy={busy} note={note} run={run} />
 
       <section className="adm-card">
         <div className="adm-card-head">
-          <h2>Standard prices</h2>
+          <h2>Special prices</h2>
         </div>
-        <p className="adm-sub">These apply to every night that isn’t covered by a special date below.</p>
-        <div className="price-houses">
-          {houses.map((house) => (
-            <StandardPrices key={house.id} house={house} list={list} busy={busy} onSave={(body) => run(`defaults-${house.id}`, body)} />
-          ))}
-        </div>
+        <p className="adm-sub">Every price you set on the calendar for chosen nights. Extra guests and the cleaning fee are added to these as usual.</p>
+        <PeriodList
+          list={list}
+          houses={houses}
+          today={today}
+          busy={busy}
+          onDelete={(id) => run(`del-${id}`, { action: "delete-period", id }, "Remove this special price? Those nights go back to the standard price.")}
+        />
       </section>
 
-      <section className="adm-card">
-        <div className="adm-card-head">
-          <h2>Special dates</h2>
-        </div>
-        <p className="adm-sub">
-          A different price per night for a period, such as Christmas, ski weeks or August. Choose the first and the last <b>night</b> of the period (the
-          day guests leave isn’t a night). Extra guests and the cleaning fee are added as usual. If two periods overlap, the one added last is used.
-        </p>
-        <PeriodForm houses={houses} today={today} busy={busy} onAdd={(body) => run("add", body)} />
-        <PeriodList list={list} houses={houses} today={today} busy={busy} onDelete={(id) => run(`del-${id}`, { action: "delete-period", id }, "Remove this special price? Those nights go back to the standard price.")} />
-      </section>
-
-      <PriceCalendar list={list} houses={houses} taken={taken} today={today} />
       <TryAStay list={list} houses={houses} today={today} />
     </div>
   );
 }
+
+type Run = (key: string, body: Record<string, unknown>, confirmText?: string) => Promise<boolean>;
 
 /* ── Standard prices per house ───────────────────────────── */
 
@@ -135,8 +129,9 @@ function StandardPrices({
       }}
     >
       <h3>
-        {house.name} <small>sleeps {house.maxGuests}</small>
+        Standard prices <small>{house.name} · sleeps {house.maxGuests}</small>
       </h3>
+      <p className="price-panel-hint">For every night without a special price. To change some nights only, tap them on the calendar.</p>
       <div className="price-fields">
         <label>
           <span>Price per night</span>
@@ -191,69 +186,7 @@ function StandardPrices({
   );
 }
 
-/* ── Special dates ───────────────────────────────────────── */
-
-function PeriodForm({ houses, today, busy, onAdd }: { houses: HouseInfo[]; today: string; busy: string | null; onAdd: (body: Record<string, unknown>) => void }) {
-  const [from, setFrom] = useState("");
-  return (
-    <form
-      className="price-period-form"
-      onSubmit={(event) => {
-        event.preventDefault();
-        const form = new FormData(event.currentTarget);
-        onAdd({
-          action: "add-period",
-          property: form.get("property"),
-          from: form.get("from"),
-          to: form.get("to"),
-          nightly: form.get("nightly"),
-          minNights: form.get("minNights"),
-          label: form.get("label"),
-        });
-      }}
-    >
-      <label>
-        <span>House</span>
-        <select name="property" defaultValue={houses[0]?.id}>
-          {houses.map((h) => (
-            <option key={h.id} value={h.id}>
-              {h.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        <span>First night</span>
-        <input name="from" type="date" min={today} required value={from} onChange={(e) => setFrom(e.target.value)} />
-      </label>
-      <label>
-        <span>Last night</span>
-        <input name="to" type="date" min={from || today} required />
-      </label>
-      <label>
-        <span>Price per night</span>
-        <span className="price-input">
-          <i>€</i>
-          <input name="nightly" type="number" inputMode="decimal" min="1" step="0.01" required placeholder="e.g. 650" />
-        </span>
-      </label>
-      <label>
-        <span>Minimum stay (optional)</span>
-        <span className="price-input">
-          <input name="minNights" type="number" inputMode="numeric" min="1" max="60" step="1" placeholder="standard" />
-          <i>nights</i>
-        </span>
-      </label>
-      <label className="is-wide">
-        <span>Name (optional)</span>
-        <input name="label" type="text" maxLength={60} placeholder="e.g. Christmas & New Year" />
-      </label>
-      <button className="button primary" type="submit" disabled={Boolean(busy)}>
-        {busy === "add" ? "Adding…" : "Add special price"}
-      </button>
-    </form>
-  );
-}
+/* ── Special prices list ─────────────────────────────────── */
 
 function PeriodList({
   list,
@@ -299,15 +232,67 @@ function PeriodList({
   );
 }
 
-/* ── Price calendar ──────────────────────────────────────── */
+/* ── Price calendar (Airbnb-style) ── */
 
-function PriceCalendar({ list, houses, taken, today }: { list: PriceList; houses: HouseInfo[]; taken: Record<House, string[]>; today: string }) {
+type Note = { ok: boolean; text: string } | null;
+
+function PriceCalendar({
+  list,
+  houses,
+  taken,
+  today,
+  busy,
+  note,
+  run,
+}: {
+  list: PriceList;
+  houses: HouseInfo[];
+  taken: Record<House, string[]>;
+  today: string;
+  busy: string | null;
+  note: Note;
+  run: Run;
+}) {
   const [house, setHouse] = useState<House>(houses[0]?.id ?? "kaja");
   const [month, setMonth] = useState(today.slice(0, 7));
   const info = houses.find((h) => h.id === house)!;
   const defaults = list.defaults[house];
   const [guests, setGuests] = useState(info.maxGuests);
   const takenSet = useMemo(() => new Set(taken[house] ?? []), [taken, house]);
+
+  // Selection: first tap = first night, second tap = last night, third tap starts again.
+  const [start, setStart] = useState<string | null>(null);
+  const [end, setEnd] = useState<string | null>(null);
+  const [hover, setHover] = useState<string | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const clear = () => {
+    setStart(null);
+    setEnd(null);
+    setHover(null);
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && clear();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const lastNight = end ?? (start && hover && hover > start ? hover : start);
+  const inRange = (date: string) => Boolean(start && lastNight && date >= start && date <= lastNight);
+
+  function pick(date: string) {
+    if (!start || end) {
+      setStart(date);
+      setEnd(null);
+    } else if (date < start) {
+      setStart(date);
+    } else {
+      setEnd(date);
+      // On phones the panel sits under the calendar: bring it into view.
+      if (window.matchMedia("(max-width: 960px)").matches) {
+        window.setTimeout(() => panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+      }
+    }
+  }
 
   const first = `${month}-01`;
   const [y, m] = month.split("-").map(Number);
@@ -320,7 +305,7 @@ function PriceCalendar({ list, houses, taken, today }: { list: PriceList; houses
   const extra = extraGuestsFor(defaults, Math.min(guests, info.maxGuests)) * (defaults.extraGuest || 0);
 
   return (
-    <section className="adm-card">
+    <section className="adm-card price-editor-card">
       <div className="adm-card-head">
         <h2>Price calendar</h2>
         <div className="price-cal-tools">
@@ -335,6 +320,7 @@ function PriceCalendar({ list, houses, taken, today }: { list: PriceList; houses
                   e.preventDefault();
                   setHouse(h.id);
                   setGuests(h.maxGuests);
+                  clear();
                 }}
               >
                 {h.name}
@@ -342,7 +328,7 @@ function PriceCalendar({ list, houses, taken, today }: { list: PriceList; houses
             ))}
           </div>
           <label className="price-guests">
-            <span>Price for</span>
+            <span>Show prices for</span>
             <select value={guests} onChange={(e) => setGuests(Number(e.target.value))}>
               {Array.from({ length: info.maxGuests }, (_, i) => i + 1).map((n) => (
                 <option key={n} value={n}>
@@ -354,63 +340,249 @@ function PriceCalendar({ list, houses, taken, today }: { list: PriceList; houses
         </div>
       </div>
       <p className="adm-sub" id="price-calendar">
-        What one night costs guests booking on the site when Airbnb doesn’t answer (cleaning fee not included). Taken nights are shaded.
+        Tap the first and the last <b>night</b> to change their price (the day guests leave isn’t a night). Prices are per night for {guests} guest
+        {guests === 1 ? "" : "s"}, without the cleaning fee. They’re used when Airbnb doesn’t give a price.
       </p>
-      <div className="price-cal-nav">
-        <button className="adm-btn" type="button" onClick={() => shift(-1)} aria-label="Previous month">
-          ‹
-        </button>
-        <b>{day(first, { month: "long", year: "numeric" })}</b>
-        <button className="adm-btn" type="button" onClick={() => shift(1)} aria-label="Next month">
-          ›
-        </button>
-        <button className="adm-btn" type="button" onClick={() => setMonth(today.slice(0, 7))}>
-          This month
-        </button>
+
+      {note && (!start || !note.ok) ? (
+        <p className={`price-note ${note.ok ? "is-ok" : "is-bad"}`} role="status">
+          {note.text}
+        </p>
+      ) : null}
+
+      <div className="price-editor">
+        <div className="price-editor-cal">
+          <div className="price-cal-nav">
+            <button className="adm-btn" type="button" onClick={() => shift(-1)} aria-label="Previous month">
+              ‹
+            </button>
+            <b>{day(first, { month: "long", year: "numeric" })}</b>
+            <button className="adm-btn" type="button" onClick={() => shift(1)} aria-label="Next month">
+              ›
+            </button>
+            {month !== today.slice(0, 7) ? (
+              <button className="adm-btn" type="button" onClick={() => setMonth(today.slice(0, 7))}>
+                Today
+              </button>
+            ) : null}
+          </div>
+          <div className="price-cal" role="grid" aria-label={`Prices for ${info.name}, ${day(first, { month: "long", year: "numeric" })}`} onMouseLeave={() => setHover(null)}>
+            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((w) => (
+              <span key={w} className="price-cal-head" role="columnheader">
+                {w}
+              </span>
+            ))}
+            {Array.from({ length: lead }, (_, i) => (
+              <span key={`lead-${i}`} className="price-cal-blank" />
+            ))}
+            {Array.from({ length: daysInMonth }, (_, i) => {
+              const date = `${month}-${String(i + 1).padStart(2, "0")}`;
+              const { price, period } = nightlyPrice(list, house, date);
+              const min = minimumNights(list, house, date);
+              const isTaken = takenSet.has(date);
+              const past = date < today;
+              const selected = inRange(date);
+              const cls = [
+                "price-cal-day",
+                period ? "is-special" : "",
+                isTaken ? "is-taken" : "",
+                past ? "is-past" : "",
+                price === null ? "is-unpriced" : "",
+                date === today ? "is-today" : "",
+                selected ? "is-selected" : "",
+                selected && date === start ? "is-first" : "",
+                selected && date === lastNight ? "is-last" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  role="gridcell"
+                  data-date={date}
+                  className={cls}
+                  disabled={past}
+                  aria-pressed={selected}
+                  aria-label={`${day(date, { weekday: "long", day: "numeric", month: "long" })}: ${price === null ? "no price" : euro(price + extra)}${period ? `, ${period.label || "special price"}` : ""}${isTaken ? ", taken" : ""}`}
+                  onClick={() => pick(date)}
+                  onMouseEnter={() => setHover(date)}
+                >
+                  <span className="price-cal-num">{i + 1}</span>
+                  <strong>{price === null ? "—" : euro(price + extra)}</strong>
+                  <small>{isTaken ? "taken" : period?.label ? period.label : min > 1 ? `min ${min}` : " "}</small>
+                </button>
+              );
+            })}
+          </div>
+          <p className="price-cal-legend">
+            <span>
+              <i className="is-special" /> Special price
+            </span>
+            <span>
+              <i className="is-taken" /> Taken (Airbnb, Booking.com or direct)
+            </span>
+            <span>— No price yet</span>
+          </p>
+        </div>
+
+        <div className="price-panel" ref={panelRef}>
+          {start ? (
+            <SelectedNights
+              key={`${house}-${start}-${end ?? ""}`}
+              house={info}
+              list={list}
+              from={start}
+              to={end ?? start}
+              chosenBoth={Boolean(end)}
+              takenSet={takenSet}
+              guests={guests}
+              busy={busy}
+              onCancel={clear}
+              run={async (key, body, confirmText) => {
+                const ok = await run(key, body, confirmText);
+                if (ok) clear();
+                return ok;
+              }}
+            />
+          ) : (
+            <StandardPrices key={house} house={info} list={list} busy={busy} onSave={(body) => run(`defaults-${house}`, body)} />
+          )}
+        </div>
       </div>
-      <div className="price-cal" role="grid" aria-label={`Prices for ${info.name}, ${day(first, { month: "long", year: "numeric" })}`}>
-        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((w) => (
-          <span key={w} className="price-cal-head" role="columnheader">
-            {w}
-          </span>
-        ))}
-        {Array.from({ length: lead }, (_, i) => (
-          <span key={`lead-${i}`} className="price-cal-blank" />
-        ))}
-        {Array.from({ length: daysInMonth }, (_, i) => {
-          const date = `${month}-${String(i + 1).padStart(2, "0")}`;
-          const { price, period } = nightlyPrice(list, house, date);
-          const min = minimumNights(list, house, date);
-          const isTaken = takenSet.has(date);
-          const past = date < today;
-          return (
-            <div
-              key={date}
-              role="gridcell"
-              className={`price-cal-day${period ? " is-special" : ""}${isTaken ? " is-taken" : ""}${past ? " is-past" : ""}${price === null ? " is-unpriced" : ""}${date === today ? " is-today" : ""}`}
-              title={`${day(date, { weekday: "long", day: "numeric", month: "long" })}${period ? ` · ${period.label || "special price"}` : ""}${isTaken ? " · taken" : ""}`}
-            >
-              <span className="price-cal-num">{i + 1}</span>
-              <strong>{price === null ? "—" : euro(price + extra)}</strong>
-              <small>
-                {isTaken ? "taken" : period?.label ? period.label : min > 1 ? `min ${min}` : " "}
-              </small>
-            </div>
-          );
-        })}
-      </div>
-      <p className="price-cal-legend">
-        <span>
-          <i className="is-special" /> Special price
-        </span>
-        <span>
-          <i className="is-taken" /> Taken (Airbnb, Booking.com or direct)
-        </span>
-        <span>— No price set</span>
-      </p>
     </section>
   );
 }
+
+/** Side panel when nights are selected: one price (and optional minimum stay / name) for just those nights. */
+function SelectedNights({
+  house,
+  list,
+  from,
+  to,
+  chosenBoth,
+  takenSet,
+  guests,
+  busy,
+  onCancel,
+  run,
+}: {
+  house: HouseInfo;
+  list: PriceList;
+  from: string;
+  to: string;
+  chosenBoth: boolean;
+  takenSet: Set<string>;
+  guests: number;
+  busy: string | null;
+  onCancel: () => void;
+  run: Run;
+}) {
+  const nights = useMemo(() => {
+    const out: string[] = [];
+    for (let d = from; d <= to; d = addDays(d, 1)) out.push(d);
+    return out;
+  }, [from, to]);
+  const prices = nights.map((n) => nightlyPrice(list, house.id, n));
+  const known = prices.map((p) => p.price).filter((p): p is number => p !== null);
+  const low = known.length ? Math.min(...known) : null;
+  const high = known.length ? Math.max(...known) : null;
+  const periods = [...new Map(prices.filter((p) => p.period).map((p) => [p.period!.id, p.period!])).values()];
+  const takenCount = nights.filter((n) => takenSet.has(n)).length;
+  const sameMin = new Set(nights.map((n) => minimumNights(list, house.id, n)));
+
+  const [nightly, setNightly] = useState(low !== null && low === high && known.length === nights.length ? String(low) : "");
+  // Pre-fill name and minimum only when every chosen night belongs to the same special price.
+  const whole = periods.length === 1 && prices.every((p) => p.period?.id === periods[0].id) ? periods[0] : null;
+  const [minNights, setMinNights] = useState(whole?.minNights ? String(whole.minNights) : "");
+  const [label, setLabel] = useState(whole?.label ?? "");
+
+  const defaults = list.defaults[house.id];
+  const extraGuests = extraGuestsFor(defaults, guests);
+  const n = Number(nightly);
+  const count = nights.length;
+  const range = count === 1 ? day(from, { weekday: "short", day: "numeric", month: "short" }) : `${day(from, { day: "numeric", month: "short" })} – ${day(to, { day: "numeric", month: "short", year: "numeric" })}`;
+
+  return (
+    <form
+      className="price-selected"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void run("range", { action: "set-range", property: house.id, from, to, nightly, minNights, label });
+      }}
+    >
+      <div className="price-selected-head">
+        <h3>{range}</h3>
+        <button type="button" className="price-x" onClick={onCancel} aria-label="Clear selection">
+          ×
+        </button>
+      </div>
+      <p className="price-selected-meta">
+        {count} night{count === 1 ? "" : "s"} · {house.name}
+        {low !== null ? ` · now ${low === high ? euro(low) : `${euro(low)}–${euro(high!)}`} a night` : " · no price yet"}
+      </p>
+      {!chosenBoth ? <p className="price-panel-hint">Tap another day to choose more nights, or set a price for this one.</p> : null}
+      {periods.length ? (
+        <p className="price-panel-hint">
+          Includes {periods.map((p) => `“${p.label || "special price"}”`).join(", ")}. Saving replaces those prices on these nights only.
+        </p>
+      ) : null}
+      {takenCount ? (
+        <p className="price-panel-hint">
+          {takenCount} of these nights {takenCount === 1 ? "is" : "are"} already taken. Guests who booked keep their price.
+        </p>
+      ) : null}
+
+      <label>
+        <span>Price per night</span>
+        <span className="price-input">
+          <i>€</i>
+          <input value={nightly} onChange={(e) => setNightly(e.target.value)} type="number" inputMode="decimal" min="1" step="0.01" required placeholder="e.g. 650" autoFocus={chosenBoth} />
+        </span>
+        {defaults.includedGuests ? (
+          <small className="price-field-note">
+            For up to {defaults.includedGuests} guests{defaults.extraGuest ? `; + ${euro(defaults.extraGuest)} per extra guest per night` : ""}.
+            {n > 0 && extraGuests ? ` For ${guests} guests: ${euro(n + extraGuests * defaults.extraGuest)} a night.` : ""}
+          </small>
+        ) : null}
+      </label>
+      <label>
+        <span>Minimum stay (optional)</span>
+        <span className="price-input">
+          <input value={minNights} onChange={(e) => setMinNights(e.target.value)} type="number" inputMode="numeric" min="1" max="60" step="1" placeholder={sameMin.size === 1 ? `now ${[...sameMin][0]}` : "standard"} />
+          <i>nights</i>
+        </span>
+        <small className="price-field-note">For stays starting on these days. Empty: the standard minimum ({defaults.minNights || 1}).</small>
+      </label>
+      <label>
+        <span>Name (optional)</span>
+        <input className="price-text" value={label} onChange={(e) => setLabel(e.target.value)} type="text" maxLength={60} placeholder="e.g. Christmas & New Year" />
+      </label>
+
+      <div className="price-selected-actions">
+        <button className="button primary" type="submit" disabled={Boolean(busy)}>
+          {busy === "range" ? "Saving…" : `Save price for ${count === 1 ? "this night" : `${count} nights`}`}
+        </button>
+        {periods.length ? (
+          <button
+            className="host-link-btn"
+            type="button"
+            disabled={Boolean(busy)}
+            onClick={() =>
+              void run("clear", { action: "clear-range", property: house.id, from, to }, `Use the standard price${defaults.nightly ? ` (${euro(defaults.nightly)})` : ""} for these ${count === 1 ? "night" : `${count} nights`} again?`)
+            }
+          >
+            {busy === "clear" ? "Resetting…" : "Back to standard price"}
+          </button>
+        ) : null}
+        <button className="host-link-btn" type="button" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
 
 /* ── Try a stay ──────────────────────────────────────────── */
 

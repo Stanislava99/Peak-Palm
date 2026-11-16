@@ -1,6 +1,6 @@
 import { dbConfigured } from "@/lib/db";
 import { currentAdmin } from "@/lib/host-auth";
-import { addPeriod, deletePeriod, setDefaults } from "@/lib/price-list";
+import { addPeriod, clearRange, deletePeriod, setDefaults, setRange } from "@/lib/price-list";
 import { isPropertyId } from "@/lib/properties";
 import { NO_STORE, guard } from "@/lib/security";
 import { revalidatePath } from "next/cache";
@@ -73,6 +73,29 @@ export async function POST(request: Request) {
     await addPeriod({ property: body.property, from, to, nightly, label, minNights }, admin);
     refreshHousePages();
     return NextResponse.json({ ok: true, message: "Price period added." }, { headers: NO_STORE });
+  }
+
+  if (body.action === "set-range" || body.action === "clear-range") {
+    if (typeof body.property !== "string" || !isPropertyId(body.property)) return fail("Choose a house.");
+    const from = String(body.from ?? "");
+    const to = String(body.to ?? "");
+    if (!DATE.test(from) || !DATE.test(to)) return fail("Choose the nights on the calendar first.");
+    if (to < from) return fail("The last night must be on or after the first night.");
+    if (Date.parse(to) - Date.parse(from) > 400 * 86_400_000) return fail("Please choose at most about a year at a time.");
+    if (body.action === "clear-range") {
+      await clearRange(body.property, from, to);
+      refreshHousePages();
+      return NextResponse.json({ ok: true, message: "Done. Those nights use the standard price again." }, { headers: NO_STORE });
+    }
+    const nightly = amount(body.nightly);
+    if (nightly === null || nightly === "bad") return fail("Enter a price per night above 0.");
+    const minNights = nights(body.minNights);
+    if (minNights === "bad") return fail("Minimum stay must be a whole number of nights from 1 to 60.");
+    const label = String(body.label ?? "").trim().slice(0, 60);
+    await setRange({ property: body.property, from, to, nightly, label, minNights }, admin);
+    refreshHousePages();
+    const count = Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;
+    return NextResponse.json({ ok: true, message: `Saved. ${count === 1 ? "That night" : `Those ${count} nights`} now cost €${nightly} a night.` }, { headers: NO_STORE });
   }
 
   if (body.action === "delete-period") {

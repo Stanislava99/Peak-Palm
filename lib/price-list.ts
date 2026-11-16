@@ -1,4 +1,5 @@
-import { q } from "./db";
+import type { PoolClient } from "pg";
+import { q, tx } from "./db";
 import type { PropertyId } from "./properties";
 
 import type { PriceDefaults, PriceList, PricePeriod } from "./price-math";
@@ -70,6 +71,57 @@ export async function addPeriod(period: Omit<PricePeriod, "id">, by: string) {
     period.minNights,
     by,
   ]);
+}
+
+/**
+ * Removes the nights from..to (inclusive) from every special price of a house: periods fully inside are
+ * deleted, periods sticking out are shortened, and a period covering both sides is split in two.
+ */
+async function trimPeriods(client: PoolClient, property: PropertyId, from: string, to: string) {
+  const { rows } = await client.query<{ id: number; date_from: string; date_to: string }>(
+    `select id, to_char(date_from, 'YYYY-MM-DD') as date_from, to_char(date_to, 'YYYY-MM-DD') as date_to
+     from price_periods where property = $1 and date_from <= $3::date and date_to >= $2::date for update`,
+    [property, from, to],
+  );
+  for (const row of rows) {
+    const keepBefore = row.date_from < from;
+    const keepAfter = row.date_to > to;
+    if (!keepBefore && !keepAfter) {
+      await client.query("delete from price_periods where id = $1", [row.id]);
+    } else if (keepBefore && keepAfter) {
+      await client.query(
+        `insert into price_periods (property, date_from, date_to, nightly, label, min_nights, created_by)
+         select property, $2::date + 1, date_to, nightly, label, min_nights, created_by from price_periods where id = $1`,
+        [row.id, to],
+      );
+      await client.query("update price_periods set date_to = $2::date - 1 where id = $1", [row.id, from]);
+    } else if (keepBefore) {
+      await client.query("update price_periods set date_to = $2::date - 1 where id = $1", [row.id, from]);
+    } else {
+      await client.query("update price_periods set date_from = $2::date + 1 where id = $1", [row.id, to]);
+    }
+  }
+}
+
+/** Sets one price for the nights from..to (admin calendar selection), replacing special prices on those nights. */
+export async function setRange(period: Omit<PricePeriod, "id">, by: string) {
+  await tx(async (client) => {
+    await trimPeriods(client, period.property, period.from, period.to);
+    await client.query("insert into price_periods (property, date_from, date_to, nightly, label, min_nights, created_by) values ($1, $2, $3, $4, $5, $6, $7)", [
+      period.property,
+      period.from,
+      period.to,
+      period.nightly,
+      period.label,
+      period.minNights,
+      by,
+    ]);
+  });
+}
+
+/** Puts the nights from..to back on the standard price. */
+export async function clearRange(property: PropertyId, from: string, to: string) {
+  await tx((client) => trimPeriods(client, property, from, to));
 }
 
 export async function deletePeriod(id: number) {

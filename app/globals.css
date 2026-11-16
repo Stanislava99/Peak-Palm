@@ -2596,3 +2596,34 @@ a.adm-kpi:hover { border-color: var(--sea); }
 .adm-email-ok { color: #1d5a39; }
 .adm-email-wait { color: #7a5410; }
 .cal-day small, .adm-kpi small, .adm-sub { color: #566472; }
+
+/* Admin → Prices: Airbnb-style calendar with a side panel (15 Nov) */
+.price-editor { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 22px; align-items: start; }
+.price-editor-cal { display: grid; gap: 12px; min-width: 0; }
+.price-panel { position: sticky; top: 18px; scroll-margin-top: 18px; }
+.price-panel .price-house, .price-selected { display: grid; gap: 14px; padding: 18px; border: 1px solid var(--adm-line); border-radius: 14px; background: #fff; }
+.price-panel .price-fields { grid-template-columns: 1fr 1fr; }
+.price-panel-hint { margin: 0; font-size: 0.88rem; color: #566472; line-height: 1.45; }
+.price-cal-day { font: inherit; text-align: left; cursor: pointer; transition: background 0.12s, border-color 0.12s; }
+.price-cal-day:hover:not(:disabled) { border-color: var(--pine); }
+.price-cal-day:focus-visible { outline: 3px solid rgba(18, 59, 90, 0.35); outline-offset: 1px; }
+.price-cal-day:disabled { cursor: default; }
+.price-cal-day.is-selected { background: #cfe0ec; border-color: #7fa6c2; box-shadow: inset 0 0 0 1px #7fa6c2; }
+.price-cal-day.is-first, .price-cal-day.is-last { background: var(--pine); border-color: var(--pine); }
+.price-cal-day.is-first *, .price-cal-day.is-last * { color: #fff !important; }
+.price-selected-head { display: flex; justify-content: space-between; align-items: start; gap: 10px; }
+.price-selected h3 { margin: 0; font-family: var(--font-display), Georgia, serif; font-size: 1.4rem; font-weight: 600; color: var(--ink); line-height: 1.2; }
+.price-selected-meta { margin: -8px 0 0; color: #3f4d5a; font-size: 0.92rem; }
+.price-selected label { display: grid; gap: 5px; font-size: 0.86rem; color: #3f4d5a; font-weight: 500; }
+.price-field-note { color: #566472; font-weight: 400; font-size: 0.8rem; line-height: 1.4; }
+.price-text { font: inherit; font-size: 0.98rem; color: var(--ink); padding: 9px 11px; border: 1px solid rgba(18, 59, 90, 0.22); border-radius: 10px; background: #fff; min-height: 44px; }
+.price-x { border: 0; background: var(--adm-bg); color: var(--ink); width: 34px; height: 34px; border-radius: 50%; font-size: 1.3rem; line-height: 1; cursor: pointer; flex: none; }
+.price-selected-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.price-selected-actions .button { min-height: 44px; }
+.price-selected .host-link-btn { background: none; border: 0; padding: 6px 2px; color: var(--pine); font: inherit; font-size: 0.9rem; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; min-height: 36px; }
+.price-selected .host-link-btn:disabled { opacity: 0.5; }
+.price-cal-head { color: #566472; font-size: 0.8rem; }
+@media (max-width: 960px) {
+  .price-editor { grid-template-columns: 1fr; }
+  .price-panel { position: static; scroll-margin-top: 70px; }
+}

@@ -86,10 +86,10 @@ export default function PrivacyPage() {
             </tbody>
           </table>
           <p>
-            To see how the website is used, we count visits with Umami, a privacy-friendly analytics service: which pages are
+            To see how the website is used, we count visits with Umami and Vercel Web Analytics, two privacy-friendly analytics services: which pages are
             opened, where visitors come from, browser, device type and country, and steps such as opening the calendar, starting a
-            booking. It uses no cookies, doesn’t store your IP address, and we never send it your name,
-            email, phone or booking details, so it can’t tell us who you are (legitimate interest). We don’t use advertising
+            booking. They use no cookies, don’t store your IP address, and we never send them your name,
+            email, phone or booking details, so they can’t tell us who you are (legitimate interest). We don’t use advertising
             trackers, and the site sets no cookies for visitors. We never sell your details or share them for others’ marketing.
           </p>
         </section>
@@ -98,7 +98,7 @@ export default function PrivacyPage() {
           <h2>Who we share it with</h2>
           <ul>
             <li>Stripe, which processes card payments and refunds.</li>
-            <li>Vercel, which hosts the website, and Neon, which hosts our booking database.</li>
+            <li>Vercel, which hosts the website and gives us anonymous visit statistics, and Neon, which hosts our booking database.</li>
             <li>Umami, which gives us anonymous visit statistics (no cookies, no IP addresses stored).</li>
             <li>Our email provider, to send booking emails and replies.</li>
             <li>OpenStreetMap, which shows the map on the house pages (your browser loads it from them).</li>

@@ -104,7 +104,7 @@ export function ReviewDeck({ reviews, airbnbUrl }: { reviews: Review[]; airbnbUr
             >
               <span className="review-quote" aria-hidden="true">“</span>
               {review.rating ? (
-                <span className="review-stars" aria-label={`${review.rating} out of 5 stars`}>
+                <span className="review-stars" role="img" aria-label={`${review.rating} out of 5 stars`}>
                   {Array.from({ length: Math.round(review.rating) }, (_, s) => (
                     <Icon key={s} name="star" size={14} />
                   ))}

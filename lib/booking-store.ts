@@ -492,9 +492,10 @@ export async function reconcileAwaiting(limit = 15): Promise<Array<{ booking: Bo
   );
   const paid: Array<{ booking: Booking; stripe: Stripe }> = [];
   const accounts = stripeAccounts();
-  for (const row of rows) {
+  // Ask Stripe about all of them at once rather than one after another.
+  await Promise.all(rows.map(async (row) => {
     const account = accounts.find((a) => a.houses.includes(row.stripe_house)) ?? accounts[0];
-    if (!account) break;
+    if (!account) return;
     try {
       const session = await account.stripe.checkout.sessions.retrieve(row.stripe_session_id, { expand: ["payment_intent"] });
       const intent = session.payment_intent as Stripe.PaymentIntent | null;
@@ -507,6 +508,6 @@ export async function reconcileAwaiting(limit = 15): Promise<Array<{ booking: Bo
     } catch (error) {
       console.warn("Reconcile failed for", row.ref, (error as Error).message);
     }
-  }
+  }));
   return paid;
 }

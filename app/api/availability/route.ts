@@ -8,7 +8,7 @@ import { isPropertyId, type PropertyId } from "@/lib/properties";
 import { calendarWithSources, type CalendarSources } from "@/lib/reservations";
 import { NextResponse } from "next/server";
 
-// Fresh on every visit (with a 2-minute CDN copy), so new Airbnb blocks and admin blocks show quickly.
+// Never cached: your admin blocks and direct bookings show on the next calendar load. (Airbnb/Booking.com: see channelCache.)
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   let sources: CalendarSources = { booking: "not-configured" };
   try {
     let calendar: { days: CalendarDay[]; sources: CalendarSources };
-    [calendar, booking] = await Promise.all([calendarWithSources(property), fetchBookingListing(property)]);
+    [calendar, booking] = await Promise.all([calendarWithSources(property, "minute"), fetchBookingListing(property)]);
     days = calendar.days;
     sources = calendar.sources;
   } catch {
@@ -30,6 +30,6 @@ export async function GET(request: Request) {
   const rating = await fetchAirbnbRating(property);
   return NextResponse.json(
     { days, error, booking, rating, sources },
-    { headers: { "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300" } },
+    { headers: { "Cache-Control": "private, no-store" } },
   );
 }

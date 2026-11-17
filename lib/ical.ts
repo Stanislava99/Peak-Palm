@@ -49,17 +49,31 @@ const AIRBNB_ICAL_ENV: Record<PropertyId, string> = {
   janis: "AIRBNB_ICAL_JANIS",
 };
 
+/**
+ * How old Airbnb / Booking.com export data may be:
+ * - "live": read now. Admin and the final check before a guest pays.
+ * - "minute": a copy up to 1 minute old. The guest calendar (Airbnb's own export lags more than that,
+ *   and it spares Airbnb a request on every page view). Your admin blocks and direct bookings are never cached.
+ * - "page": a 5-minute copy for pre-built pages, which re-check when the calendar opens anyway
+ *   (reading live there would make those pages rebuild on every visit).
+ */
+export type Freshness = "live" | "minute" | "page";
+export function channelCache(freshness: Freshness): RequestInit {
+  if (freshness === "live") return { cache: "no-store" };
+  return { next: { revalidate: freshness === "minute" ? 60 : 300 } };
+}
+
 export function airbnbIcalUrl(property: PropertyId): string | null {
   const value = process.env[AIRBNB_ICAL_ENV[property]]?.trim();
   return value && /^https:\/\/([a-z0-9-]+\.)*airbnb\.[a-z.]+\//i.test(value) ? value : null;
 }
 
 /** Nights taken on Airbnb from the export link, or null if the link isn't set or didn't answer. */
-export async function fetchAirbnbIcalNights(property: PropertyId): Promise<Set<string> | null> {
+export async function fetchAirbnbIcalNights(property: PropertyId, freshness: Freshness = "page"): Promise<Set<string> | null> {
   const url = airbnbIcalUrl(property);
   if (!url) return null;
   try {
-    const response = await fetch(url, { headers: { Accept: "text/calendar, text/plain, */*" }, next: { revalidate: 300 } }); // Airbnb refreshes the feed itself; 5 min is our share of the delay
+    const response = await fetch(url, { headers: { Accept: "text/calendar, text/plain, */*" }, ...channelCache(freshness) });
     if (!response.ok) {
       console.warn("Airbnb iCal request failed", { property, status: response.status });
       return null;
@@ -79,13 +93,13 @@ export async function fetchAirbnbIcalNights(property: PropertyId): Promise<Set<s
 export type ChannelNights = { nights: Set<string>; status: "synced" | "not-configured" | "failed" };
 
 /** Nights already booked on Booking.com for this house. */
-export async function fetchBookingNights(property: PropertyId): Promise<ChannelNights> {
+export async function fetchBookingNights(property: PropertyId, freshness: Freshness = "page"): Promise<ChannelNights> {
   const url = bookingIcalUrl(property);
   if (!url) return { nights: new Set(), status: "not-configured" };
   try {
     const response = await fetch(url, {
       headers: { Accept: "text/calendar, text/plain, */*" },
-      next: { revalidate: 900 },
+      ...channelCache(freshness),
     });
     if (!response.ok) return { nights: new Set(), status: "failed" };
     const text = await response.text();

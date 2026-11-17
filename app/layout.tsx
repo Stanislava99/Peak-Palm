@@ -5,11 +5,19 @@ import { analyticsWebsiteId } from "@/lib/analytics";
 import { Analytics } from "@/components/Analytics";
 import { VercelAnalytics } from "@/components/VercelAnalytics";
 import type { Metadata, Viewport } from "next";
-import "@fontsource/cinzel/500.css";
-import "@fontsource-variable/cormorant-garamond/wght.css";
-import "@fontsource-variable/cormorant-garamond/wght-italic.css";
-import "@fontsource-variable/jost/wght.css";
+import { Cinzel, Cormorant_Garamond, Jost } from "next/font/google";
 import "./globals.css";
+
+// next/font self-hosts these, preloads the Latin files and sizes the fallback
+// font to match, so text doesn't jump when the web font arrives.
+const cinzel = Cinzel({ subsets: ["latin"], weight: "500", variable: "--ff-brand", display: "swap" });
+const cormorant = Cormorant_Garamond({
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  variable: "--ff-display",
+  display: "swap",
+});
+const jost = Jost({ subsets: ["latin"], variable: "--ff-sans", display: "swap" });
 
 const description =
   "Sea & Ski Villas: two private holiday houses from one host. Villa Kaja is a chalet in Bansko, Bulgaria, by the gondola. Jani’s Beach House is in Neoi Epivates, Greece, about 30 metres from the beach.";
@@ -43,7 +51,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${cinzel.variable} ${cormorant.variable} ${jost.variable}`}>
       <body>
         {children}
         <Analytics websiteId={analyticsWebsiteId()} />

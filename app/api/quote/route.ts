@@ -22,6 +22,7 @@ export async function GET(request: Request) {
 
   const result = await quoteStay(property, checkIn, checkOut, guests);
   return NextResponse.json(result, {
-    headers: { "Cache-Control": "public, s-maxage=900, stale-while-revalidate=1800" },
+    // Never cached: a price you change in admin must show to the next guest who checks.
+    headers: { "Cache-Control": "private, no-store" },
   });
 }

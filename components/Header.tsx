@@ -50,7 +50,7 @@ export function Header({ sections = true, sibling, house, discount = DEFAULT_DIS
       </a>
       ) : null}
       <div className="header-row">
-      <a className="brand" href="/" aria-label="Sea & Ski Villas, home">
+      <a className="brand" href="/">
         <span className="brand-light">
           <Lockup tone="light" cut="transparent" />
         </span>

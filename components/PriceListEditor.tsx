@@ -8,10 +8,17 @@ import { discountLabel, extraGuestsFor, guestNightPrice, minimumNights, nightDis
 type House = "kaja" | "janis";
 type HouseInfo = { id: House; name: string; maxGuests: number };
 
-const euro = (n: number) =>
-  new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR", maximumFractionDigits: n % 1 ? 2 : 0 }).format(n);
-const day = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" }) =>
-  new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { ...opts, timeZone: "UTC" });
+// Building an Intl formatter is slow, and the price calendar formats hundreds of values per render: make each once.
+const euroWhole = new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+const euroCents = new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR", maximumFractionDigits: 2 });
+const euro = (n: number) => (n % 1 ? euroCents : euroWhole).format(n);
+const dateFormats = new Map<string, Intl.DateTimeFormat>();
+const day = (iso: string, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" }) => {
+  const key = JSON.stringify(opts);
+  let format = dateFormats.get(key);
+  if (!format) dateFormats.set(key, (format = new Intl.DateTimeFormat("en-GB", { ...opts, timeZone: "UTC" })));
+  return format.format(new Date(`${iso}T12:00:00Z`));
+};
 const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
 async function send(body: Record<string, unknown>) {
@@ -371,6 +378,25 @@ function PriceCalendar({
   const extra = extraGuestsFor(defaults, Math.min(guests, info.maxGuests)) * (defaults.extraGuest || 0);
   const [show, setShow] = useState<"airbnb" | "site">("airbnb");
 
+  // Each night's price, label and note only change with the month, house, guests or prices, not while
+  // you hover or select, so they're worked out once here instead of on every mouse move.
+  const cells = useMemo(
+    () =>
+      Array.from({ length: daysInMonth }, (_, i) => {
+        const date = `${month}-${String(i + 1).padStart(2, "0")}`;
+        const { price: base, period } = nightlyPrice(list, house, date);
+        const pct = nightDiscount(list, house, date);
+        const price = base === null ? null : show === "site" ? guestNightPrice(list, house, date, guests) : base + extra;
+        const min = minimumNights(list, house, date);
+        const block = blockedMap.get(date);
+        const isTaken = !block && takenSet.has(date);
+        const label = `${day(date, { weekday: "long", day: "numeric", month: "long" })}: ${price === null ? "no price" : euro(price)}${show === "site" && pct ? ` after ${discountLabel(pct)} off` : ""}${period ? `, ${period.label || "special price"}` : ""}${isTaken ? ", taken" : ""}${block ? `, blocked${block.note ? ` (${block.note})` : ""}` : ""}`;
+        const note = block ? "blocked" : isTaken ? "taken" : period?.label ? period.label : pct !== defaults.discount ? `${pct > 0 ? `−${discountLabel(pct)}` : "no discount"}` : min > 1 ? `min ${min}` : " ";
+        return { date, n: i + 1, period, price, label, note, isTaken, block, past: date < today };
+      }),
+    [daysInMonth, month, list, house, show, guests, extra, blockedMap, takenSet, defaults.discount, today],
+  );
+
   return (
     <section className="adm-card price-editor-card">
       <div className="adm-card-head">
@@ -464,15 +490,7 @@ function PriceCalendar({
             {Array.from({ length: lead }, (_, i) => (
               <span key={`lead-${i}`} className="price-cal-blank" />
             ))}
-            {Array.from({ length: daysInMonth }, (_, i) => {
-              const date = `${month}-${String(i + 1).padStart(2, "0")}`;
-              const { price: base, period } = nightlyPrice(list, house, date);
-              const pct = nightDiscount(list, house, date);
-              const price = base === null ? null : show === "site" ? guestNightPrice(list, house, date, guests) : base + extra;
-              const min = minimumNights(list, house, date);
-              const block = blockedMap.get(date);
-              const isTaken = !block && takenSet.has(date);
-              const past = date < today;
+            {cells.map(({ date, n, period, price, label, note, isTaken, block, past }) => {
               const selected = inRange(date);
               const cls = [
                 "price-cal-day",
@@ -497,15 +515,13 @@ function PriceCalendar({
                   className={cls}
                   disabled={past}
                   aria-pressed={selected}
-                  aria-label={`${day(date, { weekday: "long", day: "numeric", month: "long" })}: ${price === null ? "no price" : euro(price)}${show === "site" && pct ? ` after ${discountLabel(pct)} off` : ""}${period ? `, ${period.label || "special price"}` : ""}${isTaken ? ", taken" : ""}${block ? `, blocked${block.note ? ` (${block.note})` : ""}` : ""}`}
+                  aria-label={label}
                   onClick={() => pick(date)}
                   onMouseEnter={() => setHover(date)}
                 >
-                  <span className="price-cal-num">{i + 1}</span>
+                  <span className="price-cal-num">{n}</span>
                   <strong>{price === null ? "—" : euro(Math.round(price))}</strong>
-                  <small>
-                    {block ? "blocked" : isTaken ? "taken" : period?.label ? period.label : pct !== defaults.discount ? `${pct > 0 ? `−${discountLabel(pct)}` : "no discount"}` : min > 1 ? `min ${min}` : " "}
-                  </small>
+                  <small>{note}</small>
                 </button>
               );
             })}

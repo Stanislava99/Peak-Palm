@@ -1,4 +1,3 @@
-import { brand } from "@/lib/brand";
 
 type Tone = "dark" | "light";
 
@@ -45,7 +44,7 @@ export function Wordmark({ tone = "dark", compact = false }: { tone?: Tone; comp
     <span className={`wordmark wordmark-${tone}${compact ? " is-compact" : ""}`}>
       <span className="wordmark-name">
         Sea <i>&amp;</i> Ski
-      </span>
+      </span>{" "}
       <span className="wordmark-sub">
         <b aria-hidden="true" />
         Villas
@@ -65,7 +64,7 @@ export function Lockup({
   cut?: string;
 }) {
   return (
-    <span className={`lockup lockup-${layout}`} aria-label={brand.name}>
+    <span className={`lockup lockup-${layout}`}>
       <Mark tone={tone} cut={cut} className="lockup-mark" />
       <Wordmark tone={tone} compact={layout === "row"} />
     </span>

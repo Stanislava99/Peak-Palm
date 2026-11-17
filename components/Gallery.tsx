@@ -91,9 +91,8 @@ export function Gallery({ photos, rooms, title, intro }: Props) {
                 src={photo.src}
                 alt={photo.alt}
                 fill
-                sizes="(max-width: 900px) 88vw, 72vw"
+                sizes="(max-width: 900px) 86vw, (max-width: 1455px) 66vw, 960px"
                 draggable={false}
-                priority={i === 0}
               />
             </button>
             <figcaption>

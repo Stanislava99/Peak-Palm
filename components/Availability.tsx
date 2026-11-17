@@ -204,7 +204,7 @@ export function Availability({
   async function refresh(silent = false) {
     if (!silent) setRefreshing(true);
     try {
-      const response = await fetch(`/api/availability?property=${property}`);
+      const response = await fetch(`/api/availability?property=${property}`, { cache: "no-store" });
       if (!response.ok) throw new Error("refresh failed");
       const data = (await response.json()) as {
         days: CalendarDay[];

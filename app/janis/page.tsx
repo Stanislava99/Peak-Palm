@@ -10,7 +10,7 @@ import { fetchAirbnbReviews } from "@/lib/reviews";
 import { publishedDirectReviews } from "@/lib/guest-reviews";
 import { fetchAirbnbRating, type AirbnbRating, type CalendarDay } from "@/lib/listings";
 import { getProperty } from "@/lib/properties";
-import { calendarWithSources, type CalendarSources } from "@/lib/reservations";
+import { calendarWithSources, firstMonths, type CalendarSources } from "@/lib/reservations";
 import { houseDiscounts } from "@/lib/price-list";
 import { discountLabel } from "@/lib/price-math";
 import { paymentsEnabled } from "@/lib/stripe";
@@ -142,8 +142,8 @@ export default async function JanisPage() {
             </ul>
           </div>
           <div className="house-photos">
-            <span className="house-photo"><Image src="/photos/janis/15-beach.jpg" alt="Balcony table looking over the sea" fill sizes="(max-width: 900px) 100vw, 28vw" /></span>
-            <span className="house-photo"><Image src="/photos/janis/02-cover.jpg" alt="Living room opening toward the kitchen and dining table" fill sizes="(max-width: 900px) 100vw, 28vw" /></span>
+            <span className="house-photo"><Image src="/photos/janis/15-beach.jpg" alt="Balcony table looking over the sea" fill sizes="(max-width: 900px) 45vw, 22vw" /></span>
+            <span className="house-photo"><Image src="/photos/janis/02-cover.jpg" alt="Living room opening toward the kitchen and dining table" fill sizes="(max-width: 900px) 45vw, 22vw" /></span>
           </div>
         </section>
 
@@ -188,7 +188,7 @@ export default async function JanisPage() {
           finePrint="Self check-in with a lockbox. Quiet hours are 11:00 pm to 8:00 am. The house is reserved for your group only."
           airbnbUrl={house.airbnbUrl}
           intro={`Pick your dates and guests to see your direct price, ${DIRECT_DISCOUNT_LABEL} below booking platforms. At checkout you pay a 50% deposit (the rest paid on site, on arrival); the host then confirms your booking by email.`}
-          initialDays={calendar.days}
+          initialDays={firstMonths(calendar.days)}
           initialError={calendar.error}
           initialSources={calendar.sources}
           paymentsOn={paymentsEnabled("janis")}

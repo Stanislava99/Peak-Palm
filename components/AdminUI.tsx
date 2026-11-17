@@ -1,22 +1,25 @@
 "use client";
 
+import { useLinkStatus } from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 /** Keyboard + focus handling for the booking side panel: Esc closes it, focus moves into it. */
 export function DrawerKeys({ closeHref }: { closeHref: string }) {
+  const router = useRouter();
   useEffect(() => {
     const panel = document.getElementById("adm-drawer");
     panel?.focus();
     document.documentElement.classList.add("adm-locked");
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") window.location.assign(closeHref);
+      if (e.key === "Escape") router.push(closeHref, { scroll: false });
     };
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
       document.documentElement.classList.remove("adm-locked");
     };
-  }, [closeHref]);
+  }, [closeHref, router]);
   return null;
 }
 
@@ -79,4 +82,13 @@ export function FilterBox({
       </span>
     </div>
   );
+}
+
+/**
+ * Put inside an admin <Link>: shows that the next view is on its way (the page dims while
+ * the server prepares it), so a tap never looks ignored.
+ */
+export function LinkPending() {
+  const { pending } = useLinkStatus();
+  return <span className={`adm-pending${pending ? " is-on" : ""}`} aria-hidden="true" />;
 }

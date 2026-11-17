@@ -17,7 +17,8 @@ export async function listSiteIntents(kind?: "deposit" | "balance", stripeClient
   const accounts = stripeClient ? [stripeClient] : stripeAccounts().map((a) => a.stripe);
   const since = Math.floor(Date.now() / 1000) - LOOKBACK_DAYS * 86_400;
   const out: Stripe.PaymentIntent[] = [];
-  for (const stripe of accounts) {
+  // Each house's Stripe account is read at the same time (pages within one account must stay in order).
+  await Promise.all(accounts.map(async (stripe) => {
     let startingAfter: string | undefined;
     for (let page = 0; page < MAX_INTENTS / 100; page += 1) {
       const result = await stripe.paymentIntents.list({
@@ -33,6 +34,6 @@ export async function listSiteIntents(kind?: "deposit" | "balance", stripeClient
       if (!result.has_more || !result.data.length) break;
       startingAfter = result.data[result.data.length - 1].id;
     }
-  }
+  }));
   return out.sort((a, b) => b.created - a.created);
 }

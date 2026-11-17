@@ -1,3 +1,4 @@
+import type { Freshness } from "./ical";
 import { getProperty, type PropertyId } from "./properties";
 import type { CalendarDay } from "./stay";
 
@@ -77,9 +78,9 @@ const ICAL_DAYS_AHEAD = 365;
  * minimum stays then come from admin → Prices (iCal doesn't carry them). Falls back to reading
  * Airbnb's public calendar when no link is set or the link doesn't answer.
  */
-export async function fetchAirbnbCalendar(id: PropertyId = "kaja"): Promise<CalendarDay[]> {
+export async function fetchAirbnbCalendar(id: PropertyId = "kaja", freshness: Freshness = "page"): Promise<CalendarDay[]> {
   const { fetchAirbnbIcalNights } = await import("./ical");
-  const taken = await fetchAirbnbIcalNights(id);
+  const taken = await fetchAirbnbIcalNights(id, freshness);
   if (taken) return calendarFromNights(id, taken);
   return fetchAirbnbCalendarFromPage(id);
 }
@@ -127,7 +128,8 @@ async function fetchAirbnbCalendarFromPage(id: PropertyId): Promise<CalendarDay[
       Accept: "application/json",
       "x-airbnb-api-key": AIRBNB_KEY,
     },
-    next: { revalidate: 1800 },
+    // Only used when no iCal link is set. It reads Airbnb's public page data, so keep a short copy rather than none.
+    next: { revalidate: 300 },
   });
   if (!response.ok) {
     throw new Error(`Airbnb calendar responded ${response.status}`);

@@ -78,7 +78,7 @@ export async function POST(request: Request) {
   }
 
   forgetBookedNights(property);
-  const { days } = await calendarWithSources(property).catch(() => ({ days: [] }));
+  const { days } = await calendarWithSources(property, "live").catch(() => ({ days: [] }));
   const verdict = evaluateStay(days, checkIn, checkOut);
   if (!verdict.ok) return NextResponse.json({ error: verdict.message }, { status: 409 });
 

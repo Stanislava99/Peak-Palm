@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   }
 
   const [{ days }, reservations] = await Promise.all([
-    calendarWithSources(property),
+    calendarWithSources(property, "live"),
     readReservations(property),
   ]);
   const verdict = evaluateStay(days, checkIn, checkOut);

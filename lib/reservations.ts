@@ -1,3 +1,4 @@
+import type { Freshness } from "./ical";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { fetchAirbnbCalendar, type CalendarDay } from "./listings";
@@ -68,13 +69,15 @@ export function applyBlockedNights(days: CalendarDay[], blocked: Set<string>) {
   return days.map((day) => (blocked.has(day.date) ? { ...day, available: false, checkin: false } : day));
 }
 
+/** `freshness`: how old the Airbnb / Booking.com part may be (see channelCache). Blocks and direct bookings are always read live. */
 export async function calendarWithSources(
   property: PropertyId = "kaja",
+  freshness: Freshness = "page",
 ): Promise<{ days: CalendarDay[]; sources: CalendarSources }> {
   const [days, reservations, booking, direct, closed] = await Promise.all([
-    fetchAirbnbCalendar(property),
+    fetchAirbnbCalendar(property, freshness),
     readReservations(property),
-    fetchBookingNights(property),
+    fetchBookingNights(property, freshness),
     directBookedNights(property),
     blockedNights(property),
   ]);
@@ -84,4 +87,14 @@ export async function calendarWithSources(
 
 export async function calendarWithHolds(property: PropertyId = "kaja"): Promise<CalendarDay[]> {
   return (await calendarWithSources(property)).days;
+}
+
+/**
+ * The house pages only need the first few months in their HTML: the calendar fetches the
+ * full year from /api/availability as soon as it opens. Keeps each page ~30 KB lighter.
+ */
+export function firstMonths(days: CalendarDay[], months = 3): CalendarDay[] {
+  const now = new Date();
+  const cutoff = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + months, 1)).toISOString().slice(0, 10);
+  return days.filter((day) => day.date < cutoff);
 }

@@ -146,9 +146,8 @@ export function CardSlider({
               src={photo.src}
               alt={photo.alt}
               fill
-              sizes="(max-width: 900px) 100vw, 50vw"
+              sizes="(max-width: 900px) 90vw, 43vw"
               draggable={false}
-              priority={i === 0}
             />
           </a>
         ))}

@@ -1,9 +1,10 @@
+import Link from "next/link";
 import { Header } from "@/components/Header";
 import { houseDiscounts } from "@/lib/price-list";
 import { HostActions, HostLogin, HostLogout, ReviewActions } from "@/components/HostPanel";
 import { PriceListEditor } from "@/components/PriceListEditor";
 import { getPriceList } from "@/lib/price-list";
-import { DrawerKeys, FilterBox } from "@/components/AdminUI";
+import { DrawerKeys, FilterBox, LinkPending } from "@/components/AdminUI";
 import { RemoveFromOffers } from "@/components/Unsubscribe";
 import { unsubscribeUrl } from "@/lib/marketing";
 import { Mark } from "@/components/Logo";
@@ -105,17 +106,29 @@ function waitingFor(iso: string) {
 
 /* ── Data ──────────────────────────────────────────────── */
 
+/**
+ * Bookings whose balance was paid by card. This lists every payment in Stripe (slow: several
+ * pages per account), so the answer is reused for a minute while you click around the admin.
+ */
+let balancesCache: { at: number; refs: Promise<Set<string>> } | null = null;
 async function paidBalances(): Promise<Set<string>> {
-  const balances = await listSiteIntents("balance");
-  return new Set(balances.filter((intent) => intent.status === "succeeded").map((intent) => intent.metadata.ref).filter(Boolean));
+  if (balancesCache && Date.now() - balancesCache.at < 60_000) return balancesCache.refs;
+  const refs = listSiteIntents("balance").then(
+    (balances) => new Set(balances.filter((intent) => intent.status === "succeeded").map((intent) => intent.metadata.ref).filter(Boolean)),
+  );
+  balancesCache = { at: Date.now(), refs };
+  refs.catch(() => {
+    balancesCache = null;
+  });
+  return refs;
 }
 
 /** Nights taken outside the site: Airbnb's calendar (bookings and your blocks there), Booking.com, and nights blocked in admin. */
 async function otherChannelNights(): Promise<OtherChannels> {
   const one = async (house: PropertyId) => {
     const [airbnb, booking, blocked] = await Promise.all([
-      fetchAirbnbCalendar(house).catch(() => []),
-      fetchBookingNights(house).catch(() => ({ nights: new Set<string>() })),
+      fetchAirbnbCalendar(house, "live").catch(() => []),
+      fetchBookingNights(house, "live").catch(() => ({ nights: new Set<string>() })),
       listBlocked(house).catch(() => []),
     ]);
     return { airbnb: new Set(airbnb.filter((d) => !d.available).map((d) => d.date)), booking: booking.nights, blocked };
@@ -129,16 +142,22 @@ async function otherChannelNights(): Promise<OtherChannels> {
  * and check payments Stripe never told us about (the guest paid, but the webhook didn't arrive):
  * those become "waiting for you" and their emails go out.
  */
-async function databaseUpkeep(): Promise<string | null> {
-  if (!dbConfigured()) return null;
+let importDone = false;
+async function databaseUpkeep(): Promise<{ problem: string | null; found: number }> {
+  if (!dbConfigured()) return { problem: null, found: 0 };
+  // Runs on every admin visit, alongside the rest of the page (Stripe is asked about all unpaid checkouts at once).
   try {
-    await importFromStripeOnce();
+    let imported = 0;
+    if (!importDone) {
+      imported = await importFromStripeOnce();
+      importDone = true;
+    }
     const found = await reconcileAwaiting();
-    for (const { booking, stripe } of found) await notifyDepositPaid(stripe, booking).catch(() => false);
-    return null;
+    await Promise.all(found.map(({ booking, stripe }) => notifyDepositPaid(stripe, booking).catch(() => false)));
+    return { problem: null, found: found.length + imported };
   } catch (error) {
     console.error("Database upkeep failed", (error as Error).message);
-    return "The database didn’t respond, so this page may be incomplete. Try again in a moment.";
+    return { problem: "The database didn’t respond, so this page may be incomplete. Try again in a moment.", found: 0 };
   }
 }
 
@@ -209,35 +228,43 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   };
   const go = (v: View) => link({ view: v, b: null, ...(v === "calendar" ? {} : { m: null, span: null }) });
 
-  const dbProblem = paymentsEnabled() ? await databaseUpkeep() : null;
-  let bookings: Booking[] = [];
-  let directReviews: DirectReview[] = [];
-  let problem: string | null = null;
-  if (!paymentsEnabled()) problem = "Stripe isn’t connected yet. Add STRIPE_SECRET_KEY to the environment settings.";
-  else {
-    try {
-      const [list, paid, reviews] = await Promise.all([listBookings(), paidBalances(), listDirectReviews()]);
-      bookings = list.map((b) => (paid.has(b.ref) ? { ...b, balancePaid: true } : b));
-      directReviews = reviews;
-    } catch {
-      problem = dbConfigured() ? "The database or Stripe didn’t respond. Try again in a moment." : "Stripe didn’t respond. Try again in a moment.";
-    }
-  }
-  problem = problem ?? dbProblem;
+  // Everything below loads at the same time; card-paid balances are only fetched for the views that show them.
+  const needsBalances = Boolean(params.b) || !["prices", "reviews", "inbox", "setup", "more"].includes(view);
+  const loadBookings = () =>
+    Promise.all([listBookings(), needsBalances ? paidBalances() : Promise.resolve(new Set<string>()), listDirectReviews()]);
+  const upkeep = paymentsEnabled() ? databaseUpkeep() : Promise.resolve({ problem: null, found: 0 });
+  const loaded = paymentsEnabled() ? loadBookings().catch(() => null) : Promise.resolve(null);
 
   const needsCalendar = view === "calendar";
   const range = monthRange(month, span);
-  const [calendar, other, questions, reviewReports, optOuts] = await Promise.all([
-    needsCalendar && paymentsEnabled()
-      ? dbConfigured()
-        ? calendarBookings(range.from, range.to).catch(() => bookings.filter(isLive))
-        : Promise.resolve(bookings.filter(isLive))
-      : Promise.resolve([] as Booking[]),
+  const calendarRows = needsCalendar && paymentsEnabled() && dbConfigured() ? calendarBookings(range.from, range.to).catch(() => null) : Promise.resolve(null);
+  const [upkept, first, calendarFromDb, other, questions, reviewReports, optOuts] = await Promise.all([
+    upkeep,
+    loaded,
+    calendarRows,
     needsCalendar ? otherChannelNights() : Promise.resolve(null),
     dbConfigured() ? listQuestions().catch(() => [] as QuestionRow[]) : Promise.resolve([] as QuestionRow[]),
     view === "setup" ? Promise.all([loadAirbnbReviews("kaja"), loadAirbnbReviews("janis")]) : Promise.resolve(null),
     dbConfigured() ? listOptOuts().catch(() => new Map<string, string>()) : Promise.resolve(new Map<string, string>()),
   ]);
+
+  let bookings: Booking[] = [];
+  let directReviews: DirectReview[] = [];
+  let problem: string | null = null;
+  if (!paymentsEnabled()) problem = "Stripe isn’t connected yet. Add STRIPE_SECRET_KEY to the environment settings.";
+  else {
+    // Upkeep just marked a booking paid: read the list again so it shows up straight away.
+    const result = upkept.found ? await loadBookings().catch(() => null) : first;
+    if (result) {
+      const [list, paid, reviews] = result;
+      bookings = list.map((b) => (paid.has(b.ref) ? { ...b, balancePaid: true } : b));
+      directReviews = reviews;
+    } else {
+      problem = dbConfigured() ? "The database or Stripe didn’t respond. Try again in a moment." : "Stripe didn’t respond. Try again in a moment.";
+    }
+  }
+  problem = problem ?? upkept.problem;
+  const calendar = needsCalendar && paymentsEnabled() ? (calendarFromDb ?? bookings.filter(isLive)) : [];
 
   const pending = bookings.filter((b) => b.status === "pending");
   const newReviews = directReviews.filter((r) => r.status === "pending");
@@ -262,20 +289,21 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   return (
     <div className={`adm${appEnv() === "test" ? " is-test" : ""}`}>
       <aside className="adm-side" aria-label="Admin">
-        <a className="adm-brand" href="/admin">
+        <Link className="adm-brand" href="/admin">
           <Mark tone="light" size={44} />
           <span>
             <b>Sea &amp; Ski</b>
             <small>Host admin</small>
           </span>
-        </a>
+        <LinkPending /></Link>
         <nav className="adm-nav">
           {nav.map((item) => (
-            <a key={item.id} href={go(item.id)} aria-current={view === item.id ? "page" : undefined}>
+            <Link key={item.id} href={go(item.id)} aria-current={view === item.id ? "page" : undefined}>
               <Icon name={item.id} />
               <span>{item.label}</span>
               {item.badge ? <em>{item.badge}</em> : null}
-            </a>
+              <LinkPending />
+            </Link>
           ))}
         </nav>
         <div className="adm-side-foot">
@@ -292,7 +320,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
       <nav className="adm-tabbar" aria-label="Admin">
         {[...nav.filter((n) => n.mobile), { id: "more" as View, label: "More", badge: newReviews.length + recentQuestions.length }].map((item) => (
-          <a
+          <Link
             key={item.id}
             href={go(item.id)}
             aria-current={view === item.id || (item.id === "more" && ["guests", "prices", "reviews", "inbox", "setup", "more"].includes(view)) ? "page" : undefined}
@@ -300,7 +328,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             <Icon name={item.id} size={22} />
             <span>{item.label}</span>
             {item.badge ? <em>{item.badge}</em> : null}
-          </a>
+            <LinkPending />
+          </Link>
         ))}
       </nav>
 
@@ -377,7 +406,7 @@ function PageHead({ title, sub, children }: { title: string; sub?: string; child
   );
 }
 
-type Link = (changes: Record<string, string | null>) => string;
+type LinkFor = (changes: Record<string, string | null>) => string;
 
 /* ── Today ─────────────────────────────────────────────── */
 
@@ -393,7 +422,7 @@ function TodayView({
   bookings: Booking[];
   pending: Booking[];
   today: string;
-  link: Link;
+  link: LinkFor;
   go: (v: View) => string;
   newReviews: number;
   questions: number;
@@ -428,16 +457,16 @@ function TodayView({
           <b>{week.length}</b>
           <span>{week.length ? `Next: ${firstName(week[0].name)}, ${formatDay(week[0].checkIn)}` : "No direct arrivals this week"}</span>
         </a>
-        <a className="adm-kpi" href={go("revenue")}>
+        <Link className="adm-kpi" href={go("revenue")}>
           <small>Balance to collect</small>
           <b>{money0(cashUpcoming)}</b>
           <span>Balances due at upcoming check-ins</span>
-        </a>
-        <a className="adm-kpi is-dark" href={go("revenue")}>
+        <LinkPending /></Link>
+        <Link className="adm-kpi is-dark" href={go("revenue")}>
           <small>Direct revenue {year}</small>
           <b>{money0(thisYear.booked)}</b>
           <span>{plural(thisYear.stays, "stay")} · {plural(thisYear.nights, "night")}</span>
-        </a>
+        <LinkPending /></Link>
       </div>
 
       <div className="adm-cols">
@@ -451,9 +480,9 @@ function TodayView({
           {pending.map((b) => (
             <article className="adm-task is-warn" key={b.ref}>
               <div className="adm-task-top">
-                <a href={link({ b: b.ref })} className="adm-task-title">
+                <Link href={link({ b: b.ref })} className="adm-task-title" scroll={false}>
                   <b>{b.name}</b> · {HOUSE_NAME[b.property]}
-                </a>
+                <LinkPending /></Link>
                 <span className="adm-pill is-warn">Paid {waitingFor(b.createdAt)}</span>
               </div>
               <p className="adm-task-meta">
@@ -465,24 +494,24 @@ function TodayView({
             </article>
           ))}
           {cashOverdue.map((b) => (
-            <a className="adm-task is-link" key={`cash-${b.ref}`} href={link({ b: b.ref })}>
+            <Link className="adm-task is-link" key={`cash-${b.ref}`} href={link({ b: b.ref })} scroll={false}>
               <span className="adm-task-title">
                 Balance not marked received · <b>{b.name}</b>
               </span>
               <span className="adm-task-meta">
                 {money0(b.balance)} · checked in {formatDay(b.checkIn)} at {HOUSE_NAME[b.property]}
               </span>
-            </a>
+            <LinkPending /></Link>
           ))}
           {newReviews ? (
-            <a className="adm-task is-link" href={go("reviews")}>
+            <Link className="adm-task is-link" href={go("reviews")}>
               <span className="adm-task-title">{plural(newReviews, "new guest review")} to publish or keep off the website</span>
-            </a>
+            <LinkPending /></Link>
           ) : null}
           {questions ? (
-            <a className="adm-task is-link" href={go("inbox")}>
+            <Link className="adm-task is-link" href={go("inbox")}>
               <span className="adm-task-title">{plural(questions, "question")} from the website this week</span>
-            </a>
+            <LinkPending /></Link>
           ) : null}
         </section>
 
@@ -503,7 +532,7 @@ function TodayView({
   );
 }
 
-function Movement({ title, list, empty, link, kind }: { title: string; list: Booking[]; empty: string; link: Link; kind: "in" | "out" | "stay" }) {
+function Movement({ title, list, empty, link, kind }: { title: string; list: Booking[]; empty: string; link: LinkFor; kind: "in" | "out" | "stay" }) {
   return (
     <div className="adm-move">
       <h3>
@@ -513,7 +542,7 @@ function Movement({ title, list, empty, link, kind }: { title: string; list: Boo
         <ul>
           {list.map((b) => (
             <li key={b.ref}>
-              <a href={link({ b: b.ref })}>
+              <Link href={link({ b: b.ref })} scroll={false}>
                 <span className="adm-avatar" data-house={b.property}>
                   {initials(b.name)}
                 </span>
@@ -526,7 +555,7 @@ function Movement({ title, list, empty, link, kind }: { title: string; list: Boo
                     {kind === "in" && !b.balancePaid && b.status === "confirmed" ? ` · collect ${money0(b.balance)}` : ""}
                   </small>
                 </span>
-              </a>
+              <LinkPending /></Link>
             </li>
           ))}
         </ul>
@@ -538,7 +567,7 @@ function Movement({ title, list, empty, link, kind }: { title: string; list: Boo
 }
 
 /** Day-by-day list of direct arrivals and departures. */
-function Agenda({ bookings, today, from, days, link, title = "Coming up" }: { bookings: Booking[]; today: string; from: string; days: number; link: Link; title?: string }) {
+function Agenda({ bookings, today, from, days, link, title = "Coming up" }: { bookings: Booking[]; today: string; from: string; days: number; link: LinkFor; title?: string }) {
   const live = bookings.filter(isLive);
   const dates = Array.from({ length: days }, (_, i) => addDays(from, i));
   const rows = dates
@@ -565,19 +594,19 @@ function Agenda({ bookings, today, from, days, link, title = "Coming up" }: { bo
               </time>
               <div>
                 {r.outs.map((b) => (
-                  <a key={`o-${b.ref}`} href={link({ b: b.ref })} className="adm-agenda-item is-out">
+                  <Link key={`o-${b.ref}`} href={link({ b: b.ref })} className="adm-agenda-item is-out" scroll={false}>
                     <span className="adm-tag">Check-out</span> {b.name} · {HOUSE_NAME[b.property]} <small>clean before the next guests</small>
-                  </a>
+                  <LinkPending /></Link>
                 ))}
                 {r.ins.map((b) => (
-                  <a key={`i-${b.ref}`} href={link({ b: b.ref })} className="adm-agenda-item is-in">
+                  <Link key={`i-${b.ref}`} href={link({ b: b.ref })} className="adm-agenda-item is-in" scroll={false}>
                     <span className="adm-tag">Check-in</span> {b.name} · {HOUSE_NAME[b.property]}{" "}
                     <small>
                       {plural(b.guests, "guest")} · {plural(nightsBetween(b.checkIn, b.checkOut), "night")}
                       {b.arrival ? ` · arrives ${b.arrival}` : ""}
                       {b.status === "pending" ? " · not confirmed yet" : !b.balancePaid ? ` · ${money0(b.balance)} due` : ""}
                     </small>
-                  </a>
+                  <LinkPending /></Link>
                 ))}
               </div>
             </li>
@@ -604,7 +633,7 @@ function bookingTags(b: Booking, today: string) {
   return tags.join(" ");
 }
 
-function BookingsView({ bookings, today, link }: { bookings: Booking[]; today: string; link: Link }) {
+function BookingsView({ bookings, today, link }: { bookings: Booking[]; today: string; link: LinkFor }) {
   const rows = bookings.slice().sort((a, b) => b.checkIn.localeCompare(a.checkIn));
   return (
     <>
@@ -645,7 +674,7 @@ function BookingsView({ bookings, today, link }: { bookings: Booking[]; today: s
               {rows.map((b) => (
                 <tr key={b.ref} data-search={`${b.name} ${b.email} ${b.phone} ${b.ref} ${HOUSE_NAME[b.property]}`} data-tags={bookingTags(b, today)}>
                   <td>
-                    <a className="adm-row-link" href={link({ b: b.ref })}>
+                    <Link className="adm-row-link" href={link({ b: b.ref })} scroll={false}>
                       <span className="adm-avatar" data-house={b.property}>
                         {initials(b.name)}
                       </span>
@@ -653,7 +682,7 @@ function BookingsView({ bookings, today, link }: { bookings: Booking[]; today: s
                         <b>{b.name}</b>
                         <small>{b.ref}</small>
                       </span>
-                    </a>
+                    <LinkPending /></Link>
                   </td>
                   <td>{HOUSES.find((h) => h.id === b.property)?.short}</td>
                   <td>
@@ -680,7 +709,7 @@ function BookingsView({ bookings, today, link }: { bookings: Booking[]; today: s
 
 /* ── Guests ────────────────────────────────────────────── */
 
-function GuestsView({ guests, today, link }: { guests: Guest[]; today: string; link: Link }) {
+function GuestsView({ guests, today, link }: { guests: Guest[]; today: string; link: LinkFor }) {
   const repeat = guests.filter((g) => g.repeat).length;
   const offers = guests.filter((g) => g.offersOk);
   return (
@@ -725,7 +754,7 @@ function GuestsView({ guests, today, link }: { guests: Guest[]; today: string; l
                   data-tags={[...g.houses, g.repeat ? "repeat" : "", g.nextStay ? "upcoming" : "", g.offersOk ? "offers" : ""].join(" ")}
                 >
                   <td>
-                    <a className="adm-row-link" href={link({ b: g.latestRef })}>
+                    <Link className="adm-row-link" href={link({ b: g.latestRef })} scroll={false}>
                       <span className="adm-avatar" data-house={g.houses[0]}>
                         {initials(g.name)}
                       </span>
@@ -740,7 +769,7 @@ function GuestsView({ guests, today, link }: { guests: Guest[]; today: string; l
                         </b>
                         <small>{g.houses.map((h) => HOUSE_NAME[h]).join(" · ")}</small>
                       </span>
-                    </a>
+                    <LinkPending /></Link>
                   </td>
                   <td>
                     <a href={`mailto:${g.email}`}>{g.email}</a>
@@ -817,7 +846,7 @@ function RevenueChart({ bars }: { bars: MonthBar[] }) {
   );
 }
 
-function RevenueView({ bookings, year, today, link }: { bookings: Booking[]; year: number; today: string; link: Link }) {
+function RevenueView({ bookings, year, today, link }: { bookings: Booking[]; year: number; today: string; link: LinkFor }) {
   const inYear = bookings.filter((b) => b.checkIn.startsWith(String(year)));
   const lastYear = money(bookings.filter((b) => b.checkIn.startsWith(String(year - 1))));
   const m = money(inYear);
@@ -830,9 +859,9 @@ function RevenueView({ bookings, year, today, link }: { bookings: Booking[]; yea
       <PageHead title="Revenue" sub={`Money from bookings made on this website, by check-in date in ${year}. Airbnb and Booking.com payouts aren’t included.`}>
         <nav className="adm-seg" aria-label="Year">
           {years.map((y) => (
-            <a key={y} href={link({ y: y === Number(today.slice(0, 4)) ? null : String(y) })} aria-current={y === year ? "true" : undefined}>
+            <Link key={y} href={link({ y: y === Number(today.slice(0, 4)) ? null : String(y) })} aria-current={y === year ? "true" : undefined} scroll={false}>
               {y}
-            </a>
+            <LinkPending /></Link>
           ))}
         </nav>
       </PageHead>
@@ -1121,8 +1150,8 @@ async function PricesView({ today }: { today: string }) {
   const [list, blocked, kajaDays, janisDays] = await Promise.all([
     getPriceList().catch(() => null),
     listBlocked().catch(() => []),
-    calendarWithSources("kaja").then((c) => c.days).catch(() => []),
-    calendarWithSources("janis").then((c) => c.days).catch(() => []),
+    calendarWithSources("kaja", "live").then((c) => c.days).catch(() => []),
+    calendarWithSources("janis", "live").then((c) => c.days).catch(() => []),
   ]);
   const taken = (days: Array<{ date: string; available: boolean }>) => days.filter((d) => !d.available).map((d) => d.date);
   return (
@@ -1157,12 +1186,12 @@ function MoreView({ nav, go }: { nav: Array<{ id: View; label: string; badge?: n
       <PageHead title="More" />
       <nav className="adm-card adm-more">
         {nav.map((item) => (
-          <a key={item.id} href={go(item.id)}>
+          <Link key={item.id} href={go(item.id)}>
             <Icon name={item.id} />
             <span>{item.label}</span>
             {item.badge ? <em>{item.badge}</em> : null}
             <Icon name="arrow" size={16} />
-          </a>
+          <LinkPending /></Link>
         ))}
         <a href="/" target="_blank" rel="noreferrer">
           <Icon name="out" />
@@ -1193,11 +1222,11 @@ function BookingDrawer({
   events: Array<{ at: Date; actor: string; type: string }>;
   closeHref: string;
   others: Booking[];
-  link: Link;
+  link: LinkFor;
 }) {
   return (
     <>
-      <a className="adm-scrim" href={closeHref} aria-label="Close booking" tabIndex={-1} />
+      <Link className="adm-scrim" href={closeHref} aria-label="Close booking" tabIndex={-1}  scroll={false} />
       <aside className="adm-drawer" id="adm-drawer" tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="adm-drawer-title">
         <DrawerKeys closeHref={closeHref} />
         <header className="adm-drawer-head">
@@ -1206,9 +1235,9 @@ function BookingDrawer({
             <h2 id="adm-drawer-title">{b ? b.name : "Booking not found"}</h2>
             {b ? <Pill b={b} /> : null}
           </div>
-          <a className="adm-close" href={closeHref} aria-label="Close">
+          <Link className="adm-close" href={closeHref} aria-label="Close" scroll={false}>
             ×
-          </a>
+          <LinkPending /></Link>
         </header>
         {!b ? (
           <p className="adm-empty">This booking isn’t in the list. It may be an unpaid checkout.</p>
@@ -1285,9 +1314,9 @@ function BookingDrawer({
                       {others.map((o, i) => (
                         <span key={o.ref}>
                           {i ? ", " : ""}
-                          <a href={link({ b: o.ref })}>
+                          <Link href={link({ b: o.ref })} scroll={false}>
                             {formatDay(o.checkIn)} {o.checkIn.slice(0, 4)} · {HOUSES.find((h) => h.id === o.property)?.short}
-                          </a>
+                          <LinkPending /></Link>
                         </span>
                       ))}
                     </dd>

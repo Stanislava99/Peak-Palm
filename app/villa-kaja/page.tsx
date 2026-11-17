@@ -10,7 +10,7 @@ import { getProperty } from "@/lib/properties";
 import { fetchAirbnbReviews } from "@/lib/reviews";
 import { publishedDirectReviews } from "@/lib/guest-reviews";
 import { fetchAirbnbRating, type AirbnbRating, type CalendarDay } from "@/lib/listings";
-import { calendarWithSources, type CalendarSources } from "@/lib/reservations";
+import { calendarWithSources, firstMonths, type CalendarSources } from "@/lib/reservations";
 import { houseDiscounts } from "@/lib/price-list";
 import { discountLabel } from "@/lib/price-math";
 import { paymentsEnabled } from "@/lib/stripe";
@@ -135,8 +135,8 @@ export default async function VillaKajaPage() {
             </ul>
           </div>
           <div className="house-photos">
-            <span className="house-photo"><Image src="/photos/02-living.jpg" alt="Living and dining room with a red sofa and a long oak table" fill sizes="(max-width: 900px) 100vw, 28vw" /></span>
-            <span className="house-photo"><Image src="/photos/08-bedroom-1.jpg" alt="A bright bedroom with a large bed and turquoise cushions" fill sizes="(max-width: 900px) 100vw, 28vw" /></span>
+            <span className="house-photo"><Image src="/photos/02-living.jpg" alt="Living and dining room with a red sofa and a long oak table" fill sizes="(max-width: 900px) 45vw, 22vw" /></span>
+            <span className="house-photo"><Image src="/photos/08-bedroom-1.jpg" alt="A bright bedroom with a large bed and turquoise cushions" fill sizes="(max-width: 900px) 45vw, 22vw" /></span>
           </div>
         </section>
 
@@ -182,7 +182,7 @@ export default async function VillaKajaPage() {
           finePrint="Check-in after 4:00 pm. Check-out by 11:00 am. The house is reserved for your group only."
           airbnbUrl={AIRBNB_URL}
           intro={`Pick your dates and guests to see your direct price, ${DIRECT_DISCOUNT_LABEL} below booking platforms. At checkout you pay a 50% deposit (the rest paid on site, on arrival); the host then confirms your booking by email.`}
-          initialDays={calendar.days}
+          initialDays={firstMonths(calendar.days)}
           initialError={calendar.error}
           initialSources={calendar.sources}
           paymentsOn={paymentsEnabled("kaja")}

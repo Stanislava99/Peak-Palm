@@ -65,7 +65,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
   const valid = /^\d{4}-\d{2}-\d{2}$/.test(checkIn) && /^\d{4}-\d{2}-\d{2}$/.test(checkOut) && checkOut > checkIn;
   const [calendar, priced] = valid
     ? await Promise.all([
-        calendarWithSources(property).catch(() => null),
+        calendarWithSources(property, "live").catch(() => null),
         quoteStay(property, checkIn, checkOut, guests),
       ])
     : [null, null];

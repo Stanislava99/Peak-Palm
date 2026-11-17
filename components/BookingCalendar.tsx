@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { LinkPending } from "./AdminUI";
 import type { BlockedRange } from "@/lib/blocked-nights";
 import type { Booking } from "@/lib/bookings";
 import type { PropertyId } from "@/lib/properties";
@@ -112,21 +114,25 @@ export function BookingCalendar({
         <div className="cal-tools">
           <nav className="adm-seg" aria-label="How many months">
             {[1, 2, 3].map((n) => (
-              <a key={n} href={link({ span: n === 1 ? null : String(n), b: null })} aria-current={n === span ? "true" : undefined}>
+              <Link scroll={false} key={n} href={link({ span: n === 1 ? null : String(n), b: null })} aria-current={n === span ? "true" : undefined}>
                 {n}M
-              </a>
+                <LinkPending />
+              </Link>
             ))}
           </nav>
           <nav className="adm-seg" aria-label="Month">
-            <a href={link({ m: monthKey(shiftMonth(month, -1)), b: null })} aria-label="Previous month">
+            <Link scroll={false} href={link({ m: monthKey(shiftMonth(month, -1)), b: null })} aria-label="Previous month">
               ‹
-            </a>
-            <a href={link({ m: null, b: null })} aria-current={m === today.slice(0, 7) ? "true" : undefined}>
+              <LinkPending />
+            </Link>
+            <Link scroll={false} href={link({ m: null, b: null })} aria-current={m === today.slice(0, 7) ? "true" : undefined}>
               Today
-            </a>
-            <a href={link({ m: monthKey(shiftMonth(month, 1)), b: null })} aria-label="Next month">
+              <LinkPending />
+            </Link>
+            <Link scroll={false} href={link({ m: monthKey(shiftMonth(month, 1)), b: null })} aria-label="Next month">
               ›
-            </a>
+              <LinkPending />
+            </Link>
           </nav>
         </div>
       </div>
@@ -270,12 +276,12 @@ export function BookingCalendar({
                     {(item.count ?? 1) > 1 ? `Paying now · ${item.count}` : `${first} paying`}
                   </span>
                 ) : (
-                  <a key={item.key} href={link({ b: b.ref })} className={`cal-bar is-${kind}${cut}`} style={style} title={label} aria-label={label}>
+                  <Link scroll={false} key={item.key} href={link({ b: b.ref })} className={`cal-bar is-${kind}${cut}`} style={style} title={label} aria-label={label}>
                     <b className="cal-chan" aria-hidden="true">
                       {MARK[kind]}
                     </b>
                     {first} · {b.guests}
-                  </a>
+                  </Link>
                 );
               })}
             </div>

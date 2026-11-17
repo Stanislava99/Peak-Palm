@@ -7,7 +7,7 @@
   --pine: #123b5a;
   --pine-2: #2f5a7c;
   --pine-deep: #0c2a42;
-  --brass: #8a6d3f;
+  --brass: #7a5f35; /* darker than the brand board's #8a6d3f so small eyebrow text passes contrast */
   --gold: #c8a46d;
   --gold-soft: #d8b987;
   --clay: #8d3f32;
@@ -16,9 +16,9 @@
   --sand: #d8b987;
   --line: rgba(18, 59, 90, 0.14);
   --shadow: 0 18px 44px rgba(12, 42, 66, 0.09);
-  --font-display: "Cormorant Garamond Variable", "Cormorant Garamond", Georgia, serif;
-  --font-brand: "Cinzel", "Trajan Pro", Georgia, serif;
-  --font-sans: "Jost Variable", "Jost", "Avenir Next", system-ui, sans-serif;
+  --font-display: var(--ff-display), Georgia, serif;
+  --font-brand: var(--ff-brand), "Trajan Pro", Georgia, serif;
+  --font-sans: var(--ff-sans), "Avenir Next", system-ui, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -61,6 +61,8 @@ h1, h2, h3 {
   backdrop-filter: blur(18px);
   border-bottom: 1px solid var(--line);
 }
+/* Over a hero photo: a soft dark fade so the white logo and menu stay readable on snow or bright sky. */
+.site-header:not(.is-solid) { background: linear-gradient(to bottom, rgba(8, 20, 32, 0.42), rgba(8, 20, 32, 0)); }
 .brand { text-decoration: none; display: inline-flex; transition: opacity 0.3s ease; }
 .brand-dark { display: none; }
 .site-header.is-solid .brand-light { display: none; }
@@ -372,7 +374,7 @@ h1 { font-size: clamp(2.8rem, 5.4vw, 4.9rem); max-width: 15ch; }
   --white: #fbfaf6;
   --pine: #1d4646;
   --pine-2: #2f6a85;
-  --brass: #8a6d3f;
+  --brass: #7a5f35;
   --clay: #9a4034;
   --line: rgba(20, 34, 38, 0.12);
   --shadow: 0 24px 60px rgba(14, 40, 48, 0.16);
@@ -716,12 +718,14 @@ body { -webkit-font-smoothing: antialiased; }
 }
 .wordmark-sub b { display: block; width: 3.6em; height: 1px; background: currentColor; opacity: 0.8; }
 .wordmark.is-compact .wordmark-name { font-size: 1.12rem; }
-.wordmark.is-compact .wordmark-sub { font-size: 0.56rem; margin-top: 0.45em; gap: 0.7em; }
+.wordmark.is-compact .wordmark-sub { font-size: 0.62rem; margin-top: 0.45em; gap: 0.7em; }
 .wordmark.is-compact .wordmark-sub b { width: 1.8em; }
 .wordmark-dark .wordmark-name { color: var(--pine); }
 .wordmark-dark .wordmark-sub { color: var(--brass); }
 .wordmark-light .wordmark-name { color: var(--paper); }
 .wordmark-light .wordmark-sub { color: var(--gold-soft); }
+/* The light logo sits on photos: a soft shadow keeps it readable on bright skies and snow. */
+.brand-light .wordmark { text-shadow: 0 1px 8px rgba(6, 14, 24, 0.45); }
 .site-header:not(.is-solid) .lockup-mark { filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35)); }
 .site-header:not(.is-solid) .wordmark { text-shadow: 0 2px 10px rgba(0, 0, 0, 0.35); }
 
@@ -899,7 +903,7 @@ body { -webkit-font-smoothing: antialiased; }
 .footer-tagline { margin: 0; font-family: var(--font-display); font-style: italic; font-size: 1.2rem; color: var(--gold-soft); }
 .footer-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
 .footer-cols div { display: grid; align-content: start; gap: 8px; }
-.footer-cols h4 { margin: 0 0 6px; font-family: var(--font-brand); font-weight: 500; font-size: 0.8rem; letter-spacing: 0.2em; color: var(--gold-soft); }
+.footer-cols h2 { margin: 0 0 6px; font-family: var(--font-brand); font-weight: 500; font-size: 0.8rem; letter-spacing: 0.2em; color: var(--gold-soft); }
 .footer-cols a { text-decoration: none; opacity: 0.86; }
 .footer-cols a:hover { opacity: 1; text-decoration: underline; text-underline-offset: 4px; }
 .footer-cols span { color: rgba(247, 243, 234, 0.6); font-size: 0.92rem; }
@@ -1016,7 +1020,7 @@ body, h1, h2, h3, strong, dd { font-variant-numeric: lining-nums; }
 .gallery-controls { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .gallery-count { margin: 0 10px 0 0; font-family: var(--font-display); font-size: 1.15rem; color: var(--muted); white-space: nowrap; }
 .gallery-count strong { font-size: 2rem; font-weight: 560; color: var(--pine); }
-.filters button small { margin-left: 4px; opacity: 0.55; font-size: 0.75em; }
+.filters button small { margin-left: 4px; opacity: 0.75; font-size: 0.75em; }
 
 .carousel {
   display: grid;
@@ -2503,7 +2507,7 @@ a.adm-kpi:hover { border-color: var(--sea); }
 .cancel-contact a { color: var(--pine); font-weight: 500; }
 
 /* Official registration numbers (AMA etc.) */
-.footer-cols .footer-reg { font-size: 0.8rem; letter-spacing: 0.04em; color: rgba(247, 243, 234, 0.5); }
+.footer-cols .footer-reg { font-size: 0.8rem; letter-spacing: 0.04em; color: rgba(247, 243, 234, 0.66); }
 .house-reg { margin: 18px 0 0; font-size: 0.85rem; color: var(--muted); }
 .cancel-refund { margin: 0 0 22px; padding: 6px 18px; border-radius: 16px; border: 1px solid var(--line); text-align: left; }
 .cancel-refund > div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 0.95rem; }
@@ -2659,3 +2663,8 @@ a.adm-kpi:hover { border-color: var(--sea); }
 .price-blocks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .price-blocks li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--adm-line); border-radius: 12px; background: #fff; }
 .price-blocks li small { display: block; color: #566472; font-size: 0.84rem; }
+
+/* Admin: while a tab or month is loading, dim the current view a little (after a short delay, so fast loads don't flicker). */
+.adm-pending { display: none; }
+.adm-main { transition: opacity 0.15s ease; }
+.adm:has(.adm-pending.is-on) .adm-main { opacity: 0.55; transition-delay: 0.12s; pointer-events: none; }

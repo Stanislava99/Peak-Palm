@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { BlockedRange } from "@/lib/blocked-nights";
 import { discountLabel, extraGuestsFor, guestNightPrice, minimumNights, nightDiscount, nightlyPrice, priceFromList, type PriceList } from "@/lib/price-math";
 
 type House = "kaja" | "janis";
@@ -33,12 +34,15 @@ export function PriceListEditor({
   list,
   houses,
   taken,
+  blocked = [],
   today,
 }: {
   list: PriceList;
   houses: HouseInfo[];
-  /** Nights already taken (Airbnb, Booking.com, direct), per house. */
+  /** Nights already taken (Airbnb, Booking.com, direct, blocked here), per house. */
   taken: Record<House, string[]>;
+  /** Nights the hosts blocked on this site (admin). */
+  blocked?: BlockedRange[];
   today: string;
 }) {
   const router = useRouter();
@@ -65,7 +69,45 @@ export function PriceListEditor({
 
   return (
     <div className="price-admin">
-      <PriceCalendar list={list} houses={houses} taken={taken} today={today} busy={busy} note={note} run={run} />
+      <PriceCalendar list={list} houses={houses} taken={taken} blocked={blocked} today={today} busy={busy} note={note} run={run} />
+
+      <section className="adm-card">
+        <div className="adm-card-head">
+          <h2>Blocked nights</h2>
+        </div>
+        <p className="adm-sub">
+          Nights you closed on your site (select them on the calendar and choose “Blocked”). Guests can’t book them here. They aren’t sent to Airbnb or
+          Booking.com, so block them there too.
+        </p>
+        {blocked.length ? (
+          <ul className="price-blocks">
+            {blocked.map((b) => {
+              const nights = Math.round((Date.parse(b.to) - Date.parse(b.from)) / 86_400_000) + 1;
+              return (
+                <li key={b.id}>
+                  <span className={`price-dot is-${b.property}`} aria-hidden />
+                  <div>
+                    <b>{b.note || "Blocked"}</b>
+                    <small>
+                      {houses.find((h) => h.id === b.property)?.name} · {day(b.from)} – {day(b.to)} · {nights} night{nights === 1 ? "" : "s"}
+                    </small>
+                  </div>
+                  <button
+                    className="adm-btn"
+                    type="button"
+                    disabled={Boolean(busy)}
+                    onClick={() => run(`unblock-${b.id}`, { action: "delete-block", id: b.id }, "Unblock these nights? Guests will be able to book them on your site again.")}
+                  >
+                    {busy === `unblock-${b.id}` ? "Unblocking…" : "Unblock"}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="price-empty">Nothing blocked. All nights that are free on Airbnb and Booking.com can be booked on your site.</p>
+        )}
+      </section>
 
       <section className="adm-card">
         <div className="adm-card-head">
@@ -256,6 +298,7 @@ function PriceCalendar({
   list,
   houses,
   taken,
+  blocked,
   today,
   busy,
   note,
@@ -264,6 +307,7 @@ function PriceCalendar({
   list: PriceList;
   houses: HouseInfo[];
   taken: Record<House, string[]>;
+  blocked: BlockedRange[];
   today: string;
   busy: string | null;
   note: Note;
@@ -275,6 +319,12 @@ function PriceCalendar({
   const defaults = list.defaults[house];
   const [guests, setGuests] = useState(info.maxGuests);
   const takenSet = useMemo(() => new Set(taken[house] ?? []), [taken, house]);
+  /** Blocked night → its block (for the note), for this house. */
+  const blockedMap = useMemo(() => {
+    const map = new Map<string, BlockedRange>();
+    for (const b of blocked) if (b.property === house) for (let d = b.from; d <= b.to; d = addDays(d, 1)) map.set(d, b);
+    return map;
+  }, [blocked, house]);
 
   // Selection: first tap = first night, second tap = last night, third tap starts again.
   const [start, setStart] = useState<string | null>(null);
@@ -420,13 +470,15 @@ function PriceCalendar({
               const pct = nightDiscount(list, house, date);
               const price = base === null ? null : show === "site" ? guestNightPrice(list, house, date, guests) : base + extra;
               const min = minimumNights(list, house, date);
-              const isTaken = takenSet.has(date);
+              const block = blockedMap.get(date);
+              const isTaken = !block && takenSet.has(date);
               const past = date < today;
               const selected = inRange(date);
               const cls = [
                 "price-cal-day",
                 period ? "is-special" : "",
                 isTaken ? "is-taken" : "",
+                block ? "is-blocked" : "",
                 past ? "is-past" : "",
                 price === null ? "is-unpriced" : "",
                 date === today ? "is-today" : "",
@@ -445,14 +497,14 @@ function PriceCalendar({
                   className={cls}
                   disabled={past}
                   aria-pressed={selected}
-                  aria-label={`${day(date, { weekday: "long", day: "numeric", month: "long" })}: ${price === null ? "no price" : euro(price)}${show === "site" && pct ? ` after ${discountLabel(pct)} off` : ""}${period ? `, ${period.label || "special price"}` : ""}${isTaken ? ", taken" : ""}`}
+                  aria-label={`${day(date, { weekday: "long", day: "numeric", month: "long" })}: ${price === null ? "no price" : euro(price)}${show === "site" && pct ? ` after ${discountLabel(pct)} off` : ""}${period ? `, ${period.label || "special price"}` : ""}${isTaken ? ", taken" : ""}${block ? `, blocked${block.note ? ` (${block.note})` : ""}` : ""}`}
                   onClick={() => pick(date)}
                   onMouseEnter={() => setHover(date)}
                 >
                   <span className="price-cal-num">{i + 1}</span>
                   <strong>{price === null ? "—" : euro(Math.round(price))}</strong>
                   <small>
-                    {isTaken ? "taken" : period?.label ? period.label : pct !== defaults.discount ? `${pct > 0 ? `−${discountLabel(pct)}` : "no discount"}` : min > 1 ? `min ${min}` : " "}
+                    {block ? "blocked" : isTaken ? "taken" : period?.label ? period.label : pct !== defaults.discount ? `${pct > 0 ? `−${discountLabel(pct)}` : "no discount"}` : min > 1 ? `min ${min}` : " "}
                   </small>
                 </button>
               );
@@ -464,6 +516,9 @@ function PriceCalendar({
             </span>
             <span>
               <i className="is-taken" /> Taken (Airbnb, Booking.com or direct)
+            </span>
+            <span>
+              <i className="is-blocked" /> Blocked by you
             </span>
             <span>— No price yet</span>
           </p>
@@ -479,6 +534,7 @@ function PriceCalendar({
               to={end ?? start}
               chosenBoth={Boolean(end)}
               takenSet={takenSet}
+              blockedMap={blockedMap}
               guests={guests}
               busy={busy}
               onCancel={clear}
@@ -505,6 +561,7 @@ function SelectedNights({
   to,
   chosenBoth,
   takenSet,
+  blockedMap,
   guests,
   busy,
   onCancel,
@@ -516,6 +573,7 @@ function SelectedNights({
   to: string;
   chosenBoth: boolean;
   takenSet: Set<string>;
+  blockedMap: Map<string, BlockedRange>;
   guests: number;
   busy: string | null;
   onCancel: () => void;
@@ -531,7 +589,10 @@ function SelectedNights({
   const low = known.length ? Math.min(...known) : null;
   const high = known.length ? Math.max(...known) : null;
   const periods = [...new Map(prices.filter((p) => p.period).map((p) => [p.period!.id, p.period!])).values()];
-  const takenCount = nights.filter((n) => takenSet.has(n)).length;
+  const blockedCount = nights.filter((n) => blockedMap.has(n)).length;
+  const takenCount = nights.filter((n) => takenSet.has(n) && !blockedMap.has(n)).length;
+  const blockNotes = [...new Set(nights.map((n) => blockedMap.get(n)?.note).filter(Boolean))];
+  const [blockNote, setBlockNote] = useState(blockNotes.length === 1 ? blockNotes[0]! : "");
   const sameMin = new Set(nights.map((n) => minimumNights(list, house.id, n)));
 
   const [nightly, setNightly] = useState(low !== null && low === high && known.length === nights.length ? String(low) : "");
@@ -576,6 +637,53 @@ function SelectedNights({
           {takenCount} of these nights {takenCount === 1 ? "is" : "are"} already taken. Guests who booked keep their price.
         </p>
       ) : null}
+
+      <div className="price-avail">
+        <div className="price-avail-head">
+          <b>Can guests book {count === 1 ? "this night" : "these nights"} on your site?</b>
+          <span className="price-avail-toggle" role="group" aria-label="Availability">
+            <button
+              type="button"
+              aria-pressed={blockedCount === 0}
+              disabled={Boolean(busy) || blockedCount === 0}
+              onClick={() => void run("unblock", { action: "unblock-range", property: house.id, from, to })}
+            >
+              {busy === "unblock" ? "Opening…" : "Bookable"}
+            </button>
+            <button
+              type="button"
+              className="is-block"
+              aria-pressed={blockedCount === count}
+              disabled={Boolean(busy) || blockedCount === count}
+              onClick={() => void run("block", { action: "block-range", property: house.id, from, to, note: blockNote })}
+            >
+              {busy === "block" ? "Blocking…" : "Blocked"}
+            </button>
+          </span>
+        </div>
+        {blockedCount > 0 && blockedCount < count ? (
+          <p className="price-panel-hint">
+            {blockedCount} of these {count} nights {blockedCount === 1 ? "is" : "are"} blocked. Choose “Blocked” to block them all, or “Bookable” to open them all.
+          </p>
+        ) : null}
+        <label>
+          <span>Note (optional, only you see it)</span>
+          <input
+            className="price-text"
+            value={blockNote}
+            onChange={(e) => setBlockNote(e.target.value)}
+            type="text"
+            maxLength={80}
+            placeholder="e.g. Family stay, repairs, booked by phone"
+            aria-label="Block note"
+          />
+        </label>
+        <small className="price-field-note">
+          {blockedCount === count
+            ? "Blocked on your site. Choose “Bookable” to open again (nights taken on Airbnb or Booking.com stay closed)."
+            : "Blocking closes these nights on your site only. Block them on Airbnb and Booking.com too."}
+        </small>
+      </div>
 
       <label>
         <span>Airbnb price per night</span>

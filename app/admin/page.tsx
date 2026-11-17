@@ -26,6 +26,7 @@ import { notifyDepositPaid } from "@/lib/booking-notify";
 import { fetchAirbnbCalendar } from "@/lib/listings";
 import { fetchBookingNights } from "@/lib/ical";
 import { getProperty, type PropertyId } from "@/lib/properties";
+import { listBlocked } from "@/lib/blocked-nights";
 import { calendarWithSources } from "@/lib/reservations";
 import {
   AIRBNB_HOST_FEE, HOUSES, HOUSE_NAME, addDays, guestList, isLive, monthlyRevenue, money, movements, revenueYears, type Guest, type MonthBar,
@@ -109,14 +110,15 @@ async function paidBalances(): Promise<Set<string>> {
   return new Set(balances.filter((intent) => intent.status === "succeeded").map((intent) => intent.metadata.ref).filter(Boolean));
 }
 
-/** Nights taken outside the site: Airbnb's calendar (bookings and your blocks) and Booking.com. */
+/** Nights taken outside the site: Airbnb's calendar (bookings and your blocks there), Booking.com, and nights blocked in admin. */
 async function otherChannelNights(): Promise<OtherChannels> {
   const one = async (house: PropertyId) => {
-    const [airbnb, booking] = await Promise.all([
+    const [airbnb, booking, blocked] = await Promise.all([
       fetchAirbnbCalendar(house).catch(() => []),
       fetchBookingNights(house).catch(() => ({ nights: new Set<string>() })),
+      listBlocked(house).catch(() => []),
     ]);
-    return { airbnb: new Set(airbnb.filter((d) => !d.available).map((d) => d.date)), booking: booking.nights };
+    return { airbnb: new Set(airbnb.filter((d) => !d.available).map((d) => d.date)), booking: booking.nights, blocked };
   };
   const [kaja, janis] = await Promise.all([one("kaja"), one("janis")]);
   return { kaja, janis };
@@ -332,7 +334,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
               span={span}
               today={today}
               bookings={calendar}
-              other={other ?? { kaja: { airbnb: new Set(), booking: new Set() }, janis: { airbnb: new Set(), booking: new Set() } }}
+              other={other ?? { kaja: { airbnb: new Set(), booking: new Set(), blocked: [] }, janis: { airbnb: new Set(), booking: new Set(), blocked: [] } }}
               link={link}
             />
             <Agenda bookings={bookings} today={today} from={today < range.from ? range.from : today} days={21} link={link} />
@@ -1116,8 +1118,9 @@ async function PricesView({ today }: { today: string }) {
       </>
     );
   }
-  const [list, kajaDays, janisDays] = await Promise.all([
+  const [list, blocked, kajaDays, janisDays] = await Promise.all([
     getPriceList().catch(() => null),
+    listBlocked().catch(() => []),
     calendarWithSources("kaja").then((c) => c.days).catch(() => []),
     calendarWithSources("janis").then((c) => c.days).catch(() => []),
   ]);
@@ -1136,6 +1139,7 @@ async function PricesView({ today }: { today: string }) {
             { id: "janis", name: "Jani’s Beach House", maxGuests: getProperty("janis").maxGuests },
           ]}
           taken={{ kaja: taken(kajaDays), janis: taken(janisDays) }}
+          blocked={blocked}
           today={today}
         />
       ) : (

@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { fetchAirbnbCalendar, type CalendarDay } from "./listings";
 import { directBookedNights } from "./bookings";
+import { blockedNights } from "./blocked-nights";
 import { fetchBookingNights, type ChannelNights } from "./ical";
 import type { PropertyId } from "./properties";
 import { eachNight } from "./stay";
@@ -62,7 +63,7 @@ export function reservationOverlaps(reservations: Reservation[], checkIn: string
 
 export type CalendarSources = { booking: ChannelNights["status"] };
 
-/** Marks nights booked elsewhere (Booking.com, requests on this site) as taken. */
+/** Marks nights booked elsewhere (Booking.com, direct stays, nights the hosts blocked in admin) as taken. */
 export function applyBlockedNights(days: CalendarDay[], blocked: Set<string>) {
   return days.map((day) => (blocked.has(day.date) ? { ...day, available: false, checkin: false } : day));
 }
@@ -70,13 +71,14 @@ export function applyBlockedNights(days: CalendarDay[], blocked: Set<string>) {
 export async function calendarWithSources(
   property: PropertyId = "kaja",
 ): Promise<{ days: CalendarDay[]; sources: CalendarSources }> {
-  const [days, reservations, booking, direct] = await Promise.all([
+  const [days, reservations, booking, direct, closed] = await Promise.all([
     fetchAirbnbCalendar(property),
     readReservations(property),
     fetchBookingNights(property),
     directBookedNights(property),
+    blockedNights(property),
   ]);
-  const blocked = new Set([...heldNights(reservations), ...booking.nights, ...direct]);
+  const blocked = new Set([...heldNights(reservations), ...booking.nights, ...direct, ...closed]);
   return { days: applyBlockedNights(days, blocked), sources: { booking: booking.status } };
 }
 

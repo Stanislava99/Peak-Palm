@@ -1,3 +1,4 @@
+import type { BlockedRange } from "@/lib/blocked-nights";
 import type { Booking } from "@/lib/bookings";
 import type { PropertyId } from "@/lib/properties";
 import { HOUSES, isLive, nightRanges, occupancy } from "@/lib/admin-data";
@@ -39,11 +40,11 @@ function daysOf(from: string, to: string) {
   return out;
 }
 
-export type OtherChannels = Record<PropertyId, { airbnb: Set<string>; booking: Set<string> }>;
+export type OtherChannels = Record<PropertyId, { airbnb: Set<string>; booking: Set<string>; blocked?: BlockedRange[] }>;
 
 type Item =
   | { type: "direct"; key: string; start: string; end: string; booking: Booking; count?: number }
-  | { type: "other"; key: string; start: string; end: string; channel: "airbnb" | "booking" };
+  | { type: "other"; key: string; start: string; end: string; channel: "airbnb" | "booking" | "blocked"; note?: string };
 
 /** Puts overlapping items on separate lines (only happens on the test site, where dates never block). */
 function lanes(items: Item[]) {
@@ -133,6 +134,10 @@ export function BookingCalendar({
       <div className="cal-stats">
         {HOUSES.map((house) => {
           const o = other[house.id] ?? { airbnb: new Set<string>(), booking: new Set<string>() };
+          // Nights you blocked in admin: drawn as their own "Blocked" bars (with your note), not as Airbnb.
+          const blockedRanges = (o.blocked ?? []).filter((r) => r.to >= from && r.from < to);
+          const blockedSet = new Set<string>();
+          for (const r of blockedRanges) for (let d = r.from; d <= r.to; d = new Date(Date.parse(`${d}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10)) blockedSet.add(d);
           const occ = occupancy(bookings, new Set([...o.airbnb, ...o.booking]), house.id, from, to);
           const arrivals = bookings.filter((b) => b.property === house.id && isLive(b) && b.checkIn >= from && b.checkIn < to).length;
           return (
@@ -162,10 +167,14 @@ export function BookingCalendar({
             for (let d = b.checkIn; d < b.checkOut; d = new Date(Date.parse(`${d}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10)) directNights.add(d);
           }
           const o = other[house.id] ?? { airbnb: new Set<string>(), booking: new Set<string>() };
+          // Nights you blocked in admin: drawn as their own "Blocked" bars (with your note), not as Airbnb.
+          const blockedRanges = (o.blocked ?? []).filter((r) => r.to >= from && r.from < to);
+          const blockedSet = new Set<string>();
+          for (const r of blockedRanges) for (let d = r.from; d <= r.to; d = new Date(Date.parse(`${d}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10)) blockedSet.add(d);
           // Booking.com nights usually also show as blocked on Airbnb: label them Booking.com.
           // Direct stays you've blocked on Airbnb are already drawn as direct bars.
           const bookingNights = [...o.booking].filter((n) => n >= from && n < to && !directNights.has(n));
-          const airbnbNights = [...o.airbnb].filter((n) => n >= from && n < to && !directNights.has(n) && !o.booking.has(n));
+          const airbnbNights = [...o.airbnb].filter((n) => n >= from && n < to && !directNights.has(n) && !o.booking.has(n) && !blockedSet.has(n));
           // Guests on the payment page right now: overlapping attempts are merged into one bar
           // ("Paying now · 3"), so a guest who reopens checkout doesn't fill the calendar.
           const holds = mine.filter((b) => kindOf(b) === "hold").sort((a, b) => a.checkIn.localeCompare(b.checkIn));
@@ -182,6 +191,14 @@ export function BookingCalendar({
             ...holdGroups.map((g) => ({ type: "direct" as const, key: `hold-${g.start}`, start: g.start, end: g.end, booking: g.booking, count: g.count })),
             ...nightRanges(bookingNights).map((r) => ({ type: "other" as const, key: `bk-${r.start}`, ...r, channel: "booking" as const })),
             ...nightRanges(airbnbNights).map((r) => ({ type: "other" as const, key: `ab-${r.start}`, ...r, channel: "airbnb" as const })),
+            ...blockedRanges.map((r) => ({
+              type: "other" as const,
+              key: `bl-${r.id}`,
+              start: r.from,
+              end: new Date(Date.parse(`${r.to}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10),
+              channel: "blocked" as const,
+              note: r.note,
+            })),
           ];
           const placed = lanes(items);
           const laneCount = Math.max(1, ...placed.map((p) => p.lane + 1));
@@ -213,13 +230,27 @@ export function BookingCalendar({
                 const cut = `${item.start < from ? " cut-start" : ""}${item.end > to ? " cut-end" : ""}`;
                 const style = { gridColumn: `${start} / ${Math.max(end, start + 1)}`, gridRow: lane + 2 };
                 if (item.type === "other") {
+                  if (item.channel === "blocked") {
+                    return (
+                      <a
+                        key={item.key}
+                        href="/admin?view=prices"
+                        className={`cal-bar is-other is-blocked${cut}`}
+                        style={style}
+                        title={`${item.start} → ${item.end}: blocked by you on this site${item.note ? ` (${item.note})` : ""}. Open Prices to change.`}
+                      >
+                        <b className="cal-chan">✕</b>
+                        {item.note || "Blocked"}
+                      </a>
+                    );
+                  }
                   const name = item.channel === "booking" ? "Booking.com" : "Airbnb";
                   return (
                     <span
                       key={item.key}
                       className={`cal-bar is-other is-${item.channel}${cut}`}
                       style={style}
-                      title={`${item.start} → ${item.end}: ${item.channel === "booking" ? "Booking.com" : "taken on Airbnb, or blocked by you"}`}
+                      title={`${item.start} → ${item.end}: ${item.channel === "booking" ? "Booking.com" : "taken or blocked on Airbnb"}`}
                     >
                       <b className="cal-chan">{item.channel === "booking" ? "B" : "A"}</b>
                       {name}
@@ -262,10 +293,13 @@ export function BookingCalendar({
           <i className="cal-key is-hold" /> … Paying right now
         </span>
         <span>
-          <i className="cal-key is-airbnb" /> Airbnb or blocked
+          <i className="cal-key is-airbnb" /> Airbnb (booked or blocked there)
         </span>
         <span>
           <i className="cal-key is-booking" /> Booking.com
+        </span>
+        <span>
+          <i className="cal-key is-blocked" /> Blocked by you
         </span>
         <span className="cal-hint">Bars run from the check-in afternoon to the check-out morning. Tap a direct stay to open it.</span>
       </p>

@@ -8,7 +8,8 @@ import { isPropertyId, type PropertyId } from "@/lib/properties";
 import { calendarWithSources, type CalendarSources } from "@/lib/reservations";
 import { NextResponse } from "next/server";
 
-export const revalidate = 1800;
+// Fresh on every visit (with a 2-minute CDN copy), so new Airbnb blocks and admin blocks show quickly.
+export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const requested = new URL(request.url).searchParams.get("property");
@@ -27,5 +28,8 @@ export async function GET(request: Request) {
     booking = await fetchBookingListing(property);
   }
   const rating = await fetchAirbnbRating(property);
-  return NextResponse.json({ days, error, booking, rating, sources });
+  return NextResponse.json(
+    { days, error, booking, rating, sources },
+    { headers: { "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300" } },
+  );
 }

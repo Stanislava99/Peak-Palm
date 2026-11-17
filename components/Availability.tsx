@@ -195,8 +195,14 @@ export function Availability({
     setCheckOut(iso);
   }
 
-  async function refresh() {
-    setRefreshing(true);
+  // The page itself is cached for up to 30 minutes; fetch the latest calendar as soon as it opens.
+  useEffect(() => {
+    void refresh(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [property]);
+
+  async function refresh(silent = false) {
+    if (!silent) setRefreshing(true);
     try {
       const response = await fetch(`/api/availability?property=${property}`);
       if (!response.ok) throw new Error("refresh failed");
@@ -205,13 +211,14 @@ export function Availability({
         error: string | null;
         sources?: CalendarSources;
       };
+      if (silent && !data.days.length) return; // keep what the page had rather than an empty calendar
       setDays(data.days);
       setError(data.error);
       if (data.sources) setSources(data.sources);
     } catch {
-      setError("The calendars could not be refreshed. Try again in a moment.");
+      if (!silent) setError("The calendars could not be refreshed. Try again in a moment.");
     } finally {
-      setRefreshing(false);
+      if (!silent) setRefreshing(false);
     }
   }
 
@@ -231,7 +238,7 @@ export function Availability({
             <button type="button" onClick={() => shift(-1)} aria-label="Previous month">
               ←
             </button>
-            <button type="button" onClick={refresh} disabled={refreshing}>
+            <button type="button" onClick={() => void refresh()} disabled={refreshing}>
               {refreshing ? "Refreshing…" : "Refresh dates"}
             </button>
             <button type="button" onClick={() => shift(1)} aria-label="Next month">

@@ -191,6 +191,18 @@ create table if not exists price_periods (
   check (date_to >= date_from)
 );
 create index if not exists price_periods_by_house on price_periods (property, date_from);
+-- Nights the hosts close on this site (admin → Prices → Block). date_to is the last blocked night.
+create table if not exists blocked_nights (
+  id bigserial primary key,
+  property text not null check (property in ('kaja', 'janis')),
+  date_from date not null,
+  date_to date not null,
+  note text not null default '',
+  created_by text,
+  created_at timestamptz not null default now(),
+  check (date_to >= date_from)
+);
+create index if not exists blocked_nights_by_house on blocked_nights (property, date_from);
 alter table price_defaults add column if not exists min_nights int not null default 1 check (min_nights between 1 and 60);
 alter table price_periods add column if not exists min_nights int check (min_nights is null or min_nights between 1 and 60);
 alter table price_defaults add column if not exists included_guests int check (included_guests is null or included_guests between 1 and 30);

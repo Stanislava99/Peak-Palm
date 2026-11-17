@@ -1,5 +1,6 @@
 import { dbConfigured } from "@/lib/db";
 import { currentAdmin } from "@/lib/host-auth";
+import { blockRange, deleteBlock, unblockRange } from "@/lib/blocked-nights";
 import { addPeriod, clearRange, deletePeriod, setDefaults, setRange } from "@/lib/price-list";
 import { isPropertyId } from "@/lib/properties";
 import { NO_STORE, guard } from "@/lib/security";
@@ -108,6 +109,35 @@ export async function POST(request: Request) {
     refreshHousePages();
     const count = Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;
     return NextResponse.json({ ok: true, message: `Saved. ${count === 1 ? "That night" : `Those ${count} nights`} now cost €${nightly} a night.` }, { headers: NO_STORE });
+  }
+
+  if (body.action === "block-range" || body.action === "unblock-range") {
+    if (typeof body.property !== "string" || !isPropertyId(body.property)) return fail("Choose a house.");
+    const from = String(body.from ?? "");
+    const to = String(body.to ?? "");
+    if (!DATE.test(from) || !DATE.test(to)) return fail("Choose the nights on the calendar first.");
+    if (to < from) return fail("The last night must be on or after the first night.");
+    if (to < new Date().toISOString().slice(0, 10)) return fail("Those nights are in the past.");
+    if (Date.parse(to) - Date.parse(from) > 400 * 86_400_000) return fail("Please choose at most about a year at a time.");
+    const count = Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;
+    const what = count === 1 ? "That night" : `Those ${count} nights`;
+    if (body.action === "unblock-range") {
+      await unblockRange(body.property, from, to);
+      refreshHousePages();
+      return NextResponse.json({ ok: true, message: `${what} can be booked on your site again (unless they’re taken on Airbnb or Booking.com).` }, { headers: NO_STORE });
+    }
+    const note = String(body.note ?? "").trim().slice(0, 80);
+    await blockRange(body.property, from, to, note, admin);
+    refreshHousePages();
+    return NextResponse.json({ ok: true, message: `${what} ${count === 1 ? "is" : "are"} now blocked on your site. Remember to block ${count === 1 ? "it" : "them"} on Airbnb and Booking.com too.` }, { headers: NO_STORE });
+  }
+
+  if (body.action === "delete-block") {
+    const id = Number(body.id);
+    if (!Number.isInteger(id) || id <= 0) return fail("Unknown block.");
+    if (!(await deleteBlock(id))) return fail("That block was already removed.", 404);
+    refreshHousePages();
+    return NextResponse.json({ ok: true, message: "Unblocked. Those nights can be booked on your site again." }, { headers: NO_STORE });
   }
 
   if (body.action === "delete-period") {

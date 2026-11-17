@@ -59,7 +59,7 @@ export async function fetchAirbnbIcalNights(property: PropertyId): Promise<Set<s
   const url = airbnbIcalUrl(property);
   if (!url) return null;
   try {
-    const response = await fetch(url, { headers: { Accept: "text/calendar, text/plain, */*" }, next: { revalidate: 600 } });
+    const response = await fetch(url, { headers: { Accept: "text/calendar, text/plain, */*" }, next: { revalidate: 300 } }); // Airbnb refreshes the feed itself; 5 min is our share of the delay
     if (!response.ok) {
       console.warn("Airbnb iCal request failed", { property, status: response.status });
       return null;

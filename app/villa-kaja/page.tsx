@@ -233,6 +233,8 @@ export default async function VillaKajaPage() {
             "@type": "VacationRental",
             identifier: "villa-kaja",
             name: "Villa Kaja",
+            alternateName: ["Villa Kaja Bansko", "Vila Kaja", "Вила Кая", "Вила Кая Банско"],
+            sameAs: [house.airbnbUrl, house.bookingUrl].filter(Boolean),
             url: `${getSiteUrl()}/villa-kaja`,
             image: photos.map((p) => `${getSiteUrl()}${p.src}`),
             description:

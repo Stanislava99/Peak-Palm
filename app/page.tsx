@@ -118,40 +118,8 @@ export default async function HomePage() {
     "@type": "ItemList",
     name: brand.name,
     itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        url: `${site}/villa-kaja`,
-        item: {
-          "@type": "VacationRental",
-          name: "Villa Kaja",
-          url: `${site}/villa-kaja`,
-          image: `${site}/photos/01-exterior.jpg`,
-          address: {
-            "@type": "PostalAddress",
-            streetAddress: "18 Sveti Ivan Rilski Street",
-            addressLocality: "Bansko",
-            addressCountry: "BG",
-          },
-        },
-      },
-      {
-        "@type": "ListItem",
-        position: 2,
-        url: `${site}/janis`,
-        item: {
-          "@type": "VacationRental",
-          name: "Jani’s Beach House",
-          url: `${site}/janis`,
-          image: `${site}/photos/janis/01-cover.jpg`,
-          address: {
-            "@type": "PostalAddress",
-            addressLocality: "Neoi Epivates",
-            addressRegion: "Thermaikos",
-            addressCountry: "GR",
-          },
-        },
-      },
+      { "@type": "ListItem", position: 1, url: `${site}/villa-kaja` },
+      { "@type": "ListItem", position: 2, url: `${site}/janis` },
     ],
   };
 

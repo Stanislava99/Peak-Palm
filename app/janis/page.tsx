@@ -238,9 +238,10 @@ export default async function JanisPage() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "VacationRental",
+            identifier: "janis",
             name: "Jani’s Beach House",
             url: `${getSiteUrl()}/janis`,
-            image: `${getSiteUrl()}/photos/janis/01-cover.jpg`,
+            image: janisPhotos.map((p) => `${getSiteUrl()}${p.src}`),
             description:
               "Beachfront house in Neoi Epivates for up to 9 guests, with three bedrooms, four bathrooms, and the sand about 30 metres away.",
             address: {
@@ -250,8 +251,15 @@ export default async function JanisPage() {
               addressCountry: "GR",
             },
             geo: { "@type": "GeoCoordinates", latitude: 40.502, longitude: 22.8943 },
-            numberOfRooms: 3,
-            occupancy: { "@type": "QuantitativeValue", maxValue: 9 },
+            latitude: 40.502,
+            longitude: 22.8943,
+            containsPlace: {
+              "@type": "Accommodation",
+              additionalType: "EntirePlace",
+              numberOfBedrooms: 3,
+              numberOfBathroomsTotal: 4,
+              occupancy: { "@type": "QuantitativeValue", value: 9 },
+            },
             aggregateRating: {
               "@type": "AggregateRating",
               ratingValue: rating.score,

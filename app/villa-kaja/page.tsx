@@ -231,9 +231,10 @@ export default async function VillaKajaPage() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "VacationRental",
+            identifier: "villa-kaja",
             name: "Villa Kaja",
             url: `${getSiteUrl()}/villa-kaja`,
-            image: `${getSiteUrl()}/photos/01-exterior.jpg`,
+            image: photos.map((p) => `${getSiteUrl()}${p.src}`),
             description:
               "Private holiday chalet in Bansko for up to 15 guests, with five bedrooms, a private sauna, and gondola access on foot.",
             address: {
@@ -243,8 +244,17 @@ export default async function VillaKajaPage() {
               addressCountry: "BG",
             },
             geo: { "@type": "GeoCoordinates", latitude: 41.8289, longitude: 23.4803 },
-            numberOfRooms: 5,
-            occupancy: { "@type": "QuantitativeValue", maxValue: 15 },
+            latitude: 41.8289,
+            longitude: 23.4803,
+            containsPlace: {
+              "@type": "Accommodation",
+              additionalType: "EntirePlace",
+              numberOfBedrooms: 5,
+              numberOfBathroomsTotal: 6,
+              numberOfFullBathrooms: 5,
+              numberOfPartialBathrooms: 1,
+              occupancy: { "@type": "QuantitativeValue", value: 15 },
+            },
             aggregateRating: {
               "@type": "AggregateRating",
               ratingValue: rating.score,

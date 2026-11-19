@@ -18,7 +18,7 @@ const description =
   "Holiday houses in Bansko, Bulgaria and Neoi Epivates, Greece. Villa Kaja sleeps 15 near the gondola. Jani’s Beach House sleeps 9, about 30 metres from the beach.";
 
 export const metadata: Metadata = {
-  title: { absolute: `${brand.name} · Holiday houses in Bansko and Greece` },
+  title: { absolute: `${brand.name} · Villa Kaja Bansko and Jani’s Beach House Greece` },
   description,
   alternates: { canonical: "/" },
   openGraph: {
@@ -113,13 +113,34 @@ export default async function HomePage() {
   const [kaja, janis] = await Promise.all([fetchAirbnbRating("kaja"), fetchAirbnbRating("janis")]);
   const ratings = [kaja, janis];
 
+  // WebSite gives Google the site name to show above results (instead of the bare domain);
+  // Organization ties the logo and both houses to the brand.
   const graph = {
     "@context": "https://schema.org",
-    "@type": "ItemList",
-    name: brand.name,
-    itemListElement: [
-      { "@type": "ListItem", position: 1, url: `${site}/villa-kaja` },
-      { "@type": "ListItem", position: 2, url: `${site}/janis` },
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": `${site}/#website`,
+        url: `${site}/`,
+        name: brand.name,
+        alternateName: ["Sea and Ski Villas", "Sea & Ski", "seaandskivillas.com"],
+        publisher: { "@id": `${site}/#organization` },
+      },
+      {
+        "@type": "Organization",
+        "@id": `${site}/#organization`,
+        name: brand.name,
+        url: `${site}/`,
+        logo: `${site}/brand/logo.png`,
+      },
+      {
+        "@type": "ItemList",
+        name: brand.name,
+        itemListElement: [
+          { "@type": "ListItem", position: 1, url: `${site}/villa-kaja`, name: "Villa Kaja, Bansko" },
+          { "@type": "ListItem", position: 2, url: `${site}/janis`, name: "Jani’s Beach House, Neoi Epivates" },
+        ],
+      },
     ],
   };
 

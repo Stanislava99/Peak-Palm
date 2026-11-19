@@ -26,11 +26,11 @@ const description =
   "Holiday house in Neoi Epivates, Greece, near Thessaloniki, for up to 9 guests. Three bedrooms, sea-view balconies, and a Blue Flag beach about 30 metres away.";
 
 export const metadata: Metadata = {
-  title: "Jani’s Beach House — beach house near Thessaloniki",
+  title: "Jani’s Beach House, Neoi Epivates — beach house near Thessaloniki",
   description,
   alternates: { canonical: "/janis" },
   openGraph: {
-    title: "Jani’s Beach House — beach house near Thessaloniki",
+    title: "Jani’s Beach House, Neoi Epivates — beach house near Thessaloniki",
     description,
     url: "/janis",
     images: [
@@ -240,6 +240,8 @@ export default async function JanisPage() {
             "@type": "VacationRental",
             identifier: "janis",
             name: "Jani’s Beach House",
+            alternateName: ["Janis Beach House", "Jani's Beach House", "Jani’s Beach House Neoi Epivates"],
+            sameAs: [house.airbnbUrl],
             url: `${getSiteUrl()}/janis`,
             image: janisPhotos.map((p) => `${getSiteUrl()}${p.src}`),
             description:

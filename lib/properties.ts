@@ -17,6 +17,8 @@ export type RatingFallback = {
 export type Property = {
   id: PropertyId;
   maxGuests: number;
+  /** Guest count preselected in the guest and admin price calendars. */
+  defaultGuests: number;
   airbnbId: string;
   airbnbUrl: string;
   bookingUrl: string | null;
@@ -63,6 +65,7 @@ export const properties: Record<PropertyId, Property> = {
   kaja: {
     id: "kaja",
     maxGuests: 15,
+    defaultGuests: 12,
     airbnbId: "1849518",
     airbnbUrl: "https://www.airbnb.com/rooms/1849518",
     bookingUrl: "https://www.booking.com/hotel/bg/villa-kaja-bansko-bansko.en-gb.html",
@@ -75,6 +78,7 @@ export const properties: Record<PropertyId, Property> = {
   janis: {
     id: "janis",
     maxGuests: 9,
+    defaultGuests: 6,
     airbnbId: "26322352",
     airbnbUrl: "https://www.airbnb.com/rooms/26322352",
     bookingUrl: null,

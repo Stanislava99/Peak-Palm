@@ -53,7 +53,7 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      source: "/((?!_next/static|_next/image|stats/|photos/|brand/|icon.svg|apple-icon.png|robots.txt|sitemap.xml).*)",
+      source: "/((?!_next/static|_next/image|stats/|photos/|brand/|favicon.ico|icon.svg|icon.png|apple-icon.png|robots.txt|sitemap.xml).*)",
       missing: [{ type: "header", key: "next-router-prefetch" }],
     },
   ],

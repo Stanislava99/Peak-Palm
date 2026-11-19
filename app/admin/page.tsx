@@ -1164,8 +1164,8 @@ async function PricesView({ today }: { today: string }) {
         <PriceListEditor
           list={list}
           houses={[
-            { id: "kaja", name: "Villa Kaja", maxGuests: getProperty("kaja").maxGuests },
-            { id: "janis", name: "Jani’s Beach House", maxGuests: getProperty("janis").maxGuests },
+            { id: "kaja", name: "Villa Kaja", maxGuests: getProperty("kaja").maxGuests, defaultGuests: getProperty("kaja").defaultGuests },
+            { id: "janis", name: "Jani’s Beach House", maxGuests: getProperty("janis").maxGuests, defaultGuests: getProperty("janis").defaultGuests },
           ]}
           taken={{ kaja: taken(kajaDays), janis: taken(janisDays) }}
           blocked={blocked}

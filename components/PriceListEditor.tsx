@@ -6,7 +6,7 @@ import type { BlockedRange } from "@/lib/blocked-nights";
 import { discountLabel, extraGuestsFor, guestNightPrice, minimumNights, nightDiscount, nightlyPrice, priceFromList, type PriceList } from "@/lib/price-math";
 
 type House = "kaja" | "janis";
-type HouseInfo = { id: House; name: string; maxGuests: number };
+type HouseInfo = { id: House; name: string; maxGuests: number; defaultGuests: number };
 
 // Building an Intl formatter is slow, and the price calendar formats hundreds of values per render: make each once.
 const euroWhole = new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
@@ -324,7 +324,7 @@ function PriceCalendar({
   const [month, setMonth] = useState(today.slice(0, 7));
   const info = houses.find((h) => h.id === house)!;
   const defaults = list.defaults[house];
-  const [guests, setGuests] = useState(info.maxGuests);
+  const [guests, setGuests] = useState(info.defaultGuests);
   const takenSet = useMemo(() => new Set(taken[house] ?? []), [taken, house]);
   /** Blocked night → its block (for the note), for this house. */
   const blockedMap = useMemo(() => {
@@ -412,7 +412,7 @@ function PriceCalendar({
                 onClick={(e) => {
                   e.preventDefault();
                   setHouse(h.id);
-                  setGuests(h.maxGuests);
+                  setGuests(h.defaultGuests);
                   clear();
                 }}
               >
@@ -772,7 +772,7 @@ function TryAStay({ list, houses, today }: { list: PriceList; houses: HouseInfo[
   const [checkIn, setCheckIn] = useState(addDays(today, 30));
   const [checkOut, setCheckOut] = useState(addDays(today, 37));
   const info = houses.find((h) => h.id === house)!;
-  const [guests, setGuests] = useState(Math.min(8, info.maxGuests));
+  const [guests, setGuests] = useState(info.defaultGuests);
   const priced = checkOut > checkIn ? priceFromList(list, house, checkIn, checkOut, Math.min(guests, info.maxGuests)) : null;
   const min = minimumNights(list, house, checkIn);
 
@@ -790,7 +790,7 @@ function TryAStay({ list, houses, today }: { list: PriceList; houses: HouseInfo[
             onChange={(e) => {
               const next = e.target.value as House;
               setHouse(next);
-              setGuests((g) => Math.min(g, houses.find((h) => h.id === next)!.maxGuests));
+              setGuests(houses.find((h) => h.id === next)!.defaultGuests);
             }}
           >
             {houses.map((h) => (

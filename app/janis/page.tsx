@@ -183,7 +183,7 @@ export default async function JanisPage() {
           discount={discount}
           property="janis"
           maxGuests={house.maxGuests}
-          defaultGuests={6}
+          defaultGuests={house.defaultGuests}
           kicker="The whole house · up to 9 guests"
           finePrint="Self check-in with a lockbox. Quiet hours are 11:00 pm to 8:00 am. The house is reserved for your group only."
           airbnbUrl={house.airbnbUrl}

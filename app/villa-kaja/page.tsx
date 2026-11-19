@@ -177,7 +177,7 @@ export default async function VillaKajaPage() {
           discount={discount}
           property="kaja"
           maxGuests={house.maxGuests}
-          defaultGuests={10}
+          defaultGuests={house.defaultGuests}
           kicker="Whole chalet · up to 15 guests"
           finePrint="Check-in after 4:00 pm. Check-out by 11:00 am. The house is reserved for your group only."
           airbnbUrl={AIRBNB_URL}

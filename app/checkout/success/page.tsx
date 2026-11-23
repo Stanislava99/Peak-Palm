@@ -59,6 +59,20 @@ export default async function SuccessPage({ searchParams }: { searchParams: Prom
             <TrackOnce
               event="Booking paid"
               onceKey={booking.ref}
+              funnel={{
+                step: "Booking 6: payment succeeded",
+                stay: {
+                  house: booking.property,
+                  checkIn: booking.checkIn,
+                  checkOut: booking.checkOut,
+                  guests: booking.guests,
+                  total: booking.directTotal,
+                },
+                // revenue + currency feed Umami's Revenue report; Vercel gets this step from the webhook.
+                data: { revenue: Math.round(booking.directTotal), currency: "EUR", deposit: Math.round(booking.deposit) },
+                vercel: false,
+                stripe: "end",
+              }}
               data={{
                 house: booking.property,
                 nights: Math.round((Date.parse(booking.checkOut) - Date.parse(booking.checkIn)) / 86_400_000),

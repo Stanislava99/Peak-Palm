@@ -8,7 +8,8 @@ import { getStripe, usingMockStripe } from "@/lib/stripe";
 import { dbConfigured } from "@/lib/db";
 import { HOLD_MINUTES, attachSession, createHold, releaseHold } from "@/lib/booking-store";
 import { NO_STORE, cleanText, guard } from "@/lib/security";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { trackFunnelServer } from "@/lib/funnel-server";
 
 type Payload = {
   property?: string;
@@ -130,7 +131,8 @@ export async function POST(request: Request) {
   }
 
   const origin = new URL(request.headers.get("origin")!).origin;
-  const back = new URLSearchParams({ property, checkIn, checkOut, guests: String(guests) });
+  // cancelled=1 lets the checkout page count "payment cancelled" when the guest comes back from Stripe.
+  const back = new URLSearchParams({ property, checkIn, checkOut, guests: String(guests), cancelled: "1" });
   const stayLine = `${formatLong(checkIn)} – ${formatLong(checkOut)} · ${quote.nights} night${quote.nights === 1 ? "" : "s"} · ${guests} guest${guests === 1 ? "" : "s"}`;
 
   try {
@@ -173,6 +175,8 @@ export async function POST(request: Request) {
       if (useDb) await releaseHold(ref).catch(() => {});
       return NextResponse.json({ error: "The payment page could not be opened." }, { status: 502 });
     }
+    const headers = new Headers(request.headers);
+    after(() => trackFunnelServer("Booking 5: payment started", { house: property, checkIn, checkOut, guests }, headers));
     return NextResponse.json({ url: session.url, ref }, { headers: NO_STORE });
   } catch (error) {
     console.error("Stripe checkout failed", error);

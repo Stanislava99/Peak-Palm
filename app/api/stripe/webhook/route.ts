@@ -9,6 +9,8 @@ import { findIntent, webhookSecrets } from "@/lib/stripe";
 import { dbConfigured } from "@/lib/db";
 import { markPaid, logEvent } from "@/lib/booking-store";
 import { NextResponse } from "next/server";
+import { trackFunnelServer } from "@/lib/funnel-server";
+import type { FunnelProps, FunnelStep } from "@/lib/funnel";
 import type Stripe from "stripe";
 
 export const runtime = "nodejs";
@@ -73,7 +75,7 @@ export async function POST(request: Request) {
     if (!found) return NextResponse.json({ ok: true, ignored: "payment not in any configured account" });
     const intent = found.intent;
     if (intent.metadata?.site !== SITE_TAG) return NextResponse.json({ ok: true, ignored: true });
-    await handle(found.stripe, type, intent);
+    await handle(found.stripe, type, intent, request.headers);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Webhook handling failed; Stripe will retry", (error as Error).message);
@@ -97,7 +99,49 @@ async function mail(to: string[], content: { subject: string; html: string; text
   return result.sent || result.error === "email not configured";
 }
 
-async function handle(stripe: Stripe, type: string, intent: Stripe.PaymentIntent) {
+/**
+ * Booking funnel event, recorded once per payment and outcome: the payment's metadata keeps what was
+ * already sent, so Stripe's retries and repeated events (succeeded + amount_capturable_updated) don't
+ * count twice. `once` is the value stored under `flag`: for failures it's the failed attempt (charge),
+ * so each declined card counts once. Analytics problems are logged, never passed on, so Stripe
+ * doesn't retry because of them.
+ * Umami gets "payment failed" from here (it happens on Stripe's page, out of Umami's sight);
+ * it gets "payment succeeded" from the thank-you page, inside the guest's visit.
+ */
+async function trackOnce(
+  stripe: Stripe,
+  intent: Stripe.PaymentIntent,
+  flag: string,
+  once: string,
+  step: FunnelStep,
+  booking: Booking,
+  headers: Headers,
+  options: { umami?: boolean; data?: FunnelProps } = {},
+) {
+  try {
+    const fresh = await stripe.paymentIntents.retrieve(intent.id);
+    if (fresh.metadata?.[flag] === once) return;
+    await stripe.paymentIntents.update(intent.id, { metadata: { [flag]: once } });
+    const stay = { house: booking.property, checkIn: booking.checkIn, checkOut: booking.checkOut, guests: booking.guests, total: booking.directTotal };
+    await trackFunnelServer(step, stay, headers, options);
+  } catch (error) {
+    console.warn("Funnel event not recorded", step, (error as Error).message);
+  }
+}
+
+/** Why a card payment failed, for analytics: Stripe's codes and the card brand only. */
+function failureDetail(intent: Stripe.PaymentIntent): { once: string; data: FunnelProps } {
+  const error = intent.last_payment_error;
+  const method = error?.payment_method;
+  const data: FunnelProps = {
+    reason: error?.decline_code ?? error?.code ?? error?.type ?? "unknown",
+    brand: method?.card?.brand ?? method?.type ?? "unknown",
+    secure3d: error?.code === "payment_intent_authentication_failure",
+  };
+  return { once: (typeof error?.charge === "string" ? error.charge : null) ?? method?.id ?? "failed", data };
+}
+
+async function handle(stripe: Stripe, type: string, intent: Stripe.PaymentIntent, headers: Headers) {
   const kind = intent.metadata.kind;
 
   if (kind === "deposit") {
@@ -114,6 +158,11 @@ async function handle(stripe: Stripe, type: string, intent: Stripe.PaymentIntent
     if (paid && booking.status === "pending") {
       const ok = await notifyDepositPaid(stripe, booking);
       if (!ok) throw new Error("deposit emails not sent");
+    }
+    if (paid) await trackOnce(stripe, intent, "trackedPaid", "yes", "Booking 6: payment succeeded", booking, headers);
+    if (type === "payment_intent.payment_failed") {
+      const { once, data } = failureDetail(intent);
+      await trackOnce(stripe, intent, "trackedFailed", once, "Booking 6: payment failed", booking, headers, { umami: true, data });
     }
     return;
   }

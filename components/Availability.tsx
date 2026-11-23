@@ -10,7 +10,7 @@ import { discountLabel } from "@/lib/price-math";
 import { formatMoney, type QuoteResult, type StayQuote } from "@/lib/pricing";
 import { stayLink, type PropertyId } from "@/lib/properties";
 import { evaluateStay, formatLong, monthGrid, monthLabel } from "@/lib/stay";
-import { track } from "@/lib/track";
+import { track, trackFunnel } from "@/lib/track";
 
 type Props = {
   property: PropertyId;
@@ -102,6 +102,7 @@ export function Availability({
       month: checkIn.slice(0, 7),
       leadDays,
     });
+    trackFunnel("Booking 1: dates picked", { house: property, checkIn, checkOut, guests });
   }, [stayOk, checkIn, checkOut, guests, verdict, property, today]);
   useEffect(() => {
     if (quoteState !== "ready" && quoteState !== "failed") return;
@@ -122,6 +123,7 @@ export function Availability({
       guests,
       ...(quote ? { directTotal: Math.round(quote.directTotal) } : {}),
     });
+    if (checkIn && checkOut) trackFunnel("Booking 2: checkout clicked", { house: property, checkIn, checkOut, guests });
   }
 
   useEffect(() => {

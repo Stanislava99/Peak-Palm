@@ -5,7 +5,7 @@ import { DEPOSIT_LABEL, OFFERS_LINE } from "@/lib/booking-config";
 import { SecurePay } from "./SecurePay";
 import { formatMoney } from "@/lib/pricing";
 import type { PropertyId } from "@/lib/properties";
-import { track } from "@/lib/track";
+import { track, trackFunnel } from "@/lib/track";
 
 const ARRIVAL_TIMES = ["Not sure yet", "Before 4 pm", "4–6 pm", "6–8 pm", "8–10 pm", "After 10 pm"];
 
@@ -17,6 +17,7 @@ export function CheckoutForm({
   deposit,
   paymentsOn,
   houseName,
+  cancelled = false,
 }: {
   property: PropertyId;
   checkIn: string;
@@ -25,6 +26,8 @@ export function CheckoutForm({
   deposit: number;
   paymentsOn: boolean;
   houseName: string;
+  /** The guest came back from Stripe without paying (cancel_url adds cancelled=1). */
+  cancelled?: boolean;
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -45,11 +48,32 @@ export function CheckoutForm({
     track("Checkout started", { house: property, nights, guests, deposit: Math.round(deposit) });
   }, [property, nights, guests, deposit]);
 
+  // Funnel (Vercel Analytics): came back from Stripe without paying, then filled in the form.
+  const stay = { house: property, checkIn, checkOut, guests };
+  useEffect(() => {
+    if (!cancelled) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("cancelled"); // a reload must not count it again
+    window.history.replaceState(window.history.state, "", url);
+    trackFunnel("Booking 6: payment cancelled", stay);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cancelled]);
+  const filled = useRef(false);
+  const formComplete =
+    name.trim().length >= 2 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && phone.replace(/\D/g, "").length >= 6 && accepted;
+  useEffect(() => {
+    if (!formComplete || filled.current) return;
+    filled.current = true;
+    trackFunnel("Booking 3: form filled", stay);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formComplete]);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSending(true);
     setError(null);
     track("Pay deposit clicked", { house: property, nights, guests, deposit: Math.round(deposit), online: paymentsOn });
+    trackFunnel("Booking 4: form submitted", stay);
     try {
       if (paymentsOn) {
         const response = await fetch("/api/checkout", {
@@ -87,6 +111,7 @@ export function CheckoutForm({
         setError(data.error ?? "The request could not be sent.");
       } else {
         track("Booking request sent", { house: property, nights, guests });
+        trackFunnel("Booking 5: request sent", stay);
         setRequestRef(data.id);
       }
     } catch {

@@ -1,4 +1,7 @@
 /** Client-side helper for custom analytics events. Safe to call when analytics is off. */
+import { track as vercelTrack } from "@vercel/analytics";
+import { funnelProps, type FunnelStay, type FunnelStep } from "./funnel";
+
 type EventData = Record<string, string | number | boolean>;
 
 declare global {
@@ -57,6 +60,25 @@ export function track(name: TrackEvent, data?: EventData) {
       if (window.umami) for (const [n, d] of pending) track(n, d);
     }
   }, 250);
+}
+
+/**
+ * One booking-funnel step for Vercel Web Analytics (see lib/funnel.ts for names and properties).
+ * Separate from the Umami events above, which keep their own names and data.
+ */
+export function trackFunnel(step: FunnelStep, stay: FunnelStay, tries = 0) {
+  if (typeof window === "undefined") return;
+  // Effects in the page run before the <Analytics> component in the layout has set up window.va
+  // (and its beforeSend, which strips query strings); until then the library drops events. Wait for it.
+  if (!(window as { va?: unknown }).va) {
+    if (tries < 40) window.setTimeout(() => trackFunnel(step, stay, tries + 1), 100);
+    return;
+  }
+  try {
+    vercelTrack(step, funnelProps(stay));
+  } catch {
+    /* analytics must never break the page */
+  }
 }
 
 /** Which house a page belongs to, from its path. */

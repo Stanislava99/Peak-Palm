@@ -129,6 +129,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                 deposit={split!.deposit}
                 paymentsOn={paymentsEnabled(property)}
                 houseName={house.name}
+                cancelled={one(params.cancelled) === "1"}
               />
               <div className="checkout-policies">
                 <div>

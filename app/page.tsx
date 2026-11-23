@@ -1,4 +1,5 @@
 import { CardSlider } from "@/components/Carousel";
+import { ContactUs } from "@/components/ContactUs";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { HouseGate } from "@/components/HouseGate";
@@ -152,13 +153,13 @@ export default async function HomePage() {
 
         <section className="section intro">
           <Mark className="intro-mark" />
-          <p className="eyebrow">One host · two houses</p>
+          <p className="eyebrow">One family · two houses</p>
           <h2>
             Snow in Bansko, Bulgaria. Sea near Thessaloniki, Greece.
             <em> {brand.tagline}</em>
           </h2>
           <p>
-            Sea &amp; Ski Villas brings together two private holiday houses looked after by {brand.host}. Each is
+            Sea &amp; Ski Villas brings together two private holiday houses looked after by Frosina and her husband Nikola. Each is
             booked as a whole house for one group of family or friends: a chalet by the gondola in Bansko, Bulgaria,
             for the ski season, and a beach house in Neoi Epivates, near Thessaloniki in Greece, about 30 metres
             from the beach, for the summer.
@@ -258,6 +259,7 @@ export default async function HomePage() {
             </li>
           </ol>
         </section>
+        <ContactUs />
       </main>
       <Footer />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(graph) }} />

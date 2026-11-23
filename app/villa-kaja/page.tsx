@@ -126,7 +126,7 @@ export default async function VillaKajaPage() {
               bedrooms, the open living and dining room, the kitchen, ski storage, and the sauna.
             </p>
             <p>
-              Host Frosina looks after every stay herself.
+              Frosina and her husband Nikola look after every stay themselves.
             </p>
             <ul className="house-points">
               <li>Exclusive use for one group</li>

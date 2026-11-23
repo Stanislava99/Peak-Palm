@@ -2668,3 +2668,69 @@ a.adm-kpi:hover { border-color: var(--sea); }
 .adm-pending { display: none; }
 .adm-main { transition: opacity 0.15s ease; }
 .adm:has(.adm-pending.is-on) .adm-main { opacity: 0.55; transition-delay: 0.12s; pointer-events: none; }
+
+/* Contact us */
+.contact .section-head { margin-left: auto; margin-right: auto; text-align: center; }
+.contact-lede { color: var(--muted); }
+.contact-cards {
+  list-style: none; margin: 0 auto; padding: 0; max-width: 1080px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;
+}
+.contact-card {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;
+  padding: 28px 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--paper);
+}
+.contact-monogram {
+  display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 6px; border-radius: 50%;
+  background: var(--pine); color: var(--paper); font-size: 1.4rem; font-weight: 600;
+}
+.contact-card h3 { margin: 0; font-size: 1.6rem; }
+.contact-role { margin: 0 0 8px; color: var(--muted); font-size: 0.92rem; }
+.contact-phone {
+  display: inline-flex; align-items: center; gap: 8px; color: var(--pine); font-weight: 600;
+  font-size: 1.05rem; overflow-wrap: anywhere;
+}
+.contact-apps { display: flex; gap: 14px; margin: 4px 0 0; font-size: 0.9rem; }
+.contact-card .contact-apps { justify-content: center; }
+.contact-phone { text-decoration: none; }
+.contact-phone:hover { text-decoration: underline; text-underline-offset: 4px; }
+.footer-phone { white-space: nowrap; }
+/* Keep desktop nav labels on one line; tighten gaps on small laptops. */
+@media (min-width: 901px) { .site-header nav a { white-space: nowrap; } }
+@media (min-width: 901px) and (max-width: 1100px) { .site-header nav { gap: 16px; } .site-header nav a { font-size: 0.88rem; } }
+
+/* Phones: full-width row under the ask form */
+.hosts-ask { scroll-margin-top: 140px; }
+.hosts-ask-intro .eyebrow { margin: 0; }
+.contact-lines {
+  grid-column: 1 / -1;
+  list-style: none; margin: 0; padding: 28px 0 0;
+  border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0;
+}
+.contact-lines li { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 0 24px; }
+.contact-lines li:first-child { padding-left: 0; }
+.contact-lines li + li { border-left: 1px solid var(--line); }
+.contact-lines-name { font-size: 0.74rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.contact-lines-main {
+  display: inline-flex; align-items: center; gap: 8px; color: var(--pine); font-weight: 600; font-size: 1.05rem;
+  text-decoration: none; overflow-wrap: anywhere;
+}
+.contact-lines-main svg { color: var(--brass); flex: none; }
+.contact-lines-main:hover { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+.contact-lines .contact-apps { margin: 4px 0 0; }
+
+/* WhatsApp / Viber as small pills (contact row and home cards) */
+.contact-apps { display: flex; flex-wrap: wrap; gap: 8px; }
+.contact-apps a {
+  display: inline-flex; align-items: center; min-height: 34px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--white); color: var(--pine);
+  font-size: 0.85rem; font-weight: 500; text-decoration: none;
+}
+.contact-apps a:hover { border-color: var(--pine); }
+
+@media (max-width: 900px) {
+  .contact-lines { grid-template-columns: 1fr; padding-top: 4px; }
+  .contact-lines li, .contact-lines li:first-child { padding: 16px 0; }
+  .contact-lines li + li { border-left: 0; border-top: 1px solid var(--line); }
+}

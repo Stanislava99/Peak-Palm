@@ -1,6 +1,6 @@
 /** Client-side helper for custom analytics events. Safe to call when analytics is off. */
 import { track as vercelTrack } from "@vercel/analytics";
-import { funnelProps, type FunnelStay, type FunnelStep } from "./funnel";
+import { funnelProps, umamiFunnelProps, type FunnelStay, type FunnelStep } from "./funnel";
 
 type EventData = Record<string, string | number | boolean>;
 
@@ -32,11 +32,11 @@ export type TrackEvent =
   | "Email click"
   | "Social click";
 
-const queue: Array<[TrackEvent, EventData | undefined]> = [];
+const queue: Array<[TrackEvent | FunnelStep, EventData | undefined]> = [];
 let flushing = false;
 
 /** Sends an event; if the Umami script hasn't loaded yet, retries for a few seconds. */
-export function track(name: TrackEvent, data?: EventData) {
+export function track(name: TrackEvent | FunnelStep, data?: EventData) {
   if (typeof window === "undefined") return;
   if (window.umami) {
     try {
@@ -46,7 +46,8 @@ export function track(name: TrackEvent, data?: EventData) {
     }
     return;
   }
-  if (!document.querySelector("script[data-website-id]")) return; // analytics off on this deployment
+  // Not loaded yet (or analytics is off here): queue it. Events sent as a page opens can run before
+  // the Umami <script> tag is even added; the queue is simply dropped if Umami never appears.
   queue.push([name, data]);
   if (flushing) return;
   flushing = true;
@@ -63,15 +64,21 @@ export function track(name: TrackEvent, data?: EventData) {
 }
 
 /**
- * One booking-funnel step for Vercel Web Analytics (see lib/funnel.ts for names and properties).
- * Separate from the Umami events above, which keep their own names and data.
+ * One booking-funnel step (see lib/funnel.ts for names and properties), sent to Umami and to
+ * Vercel Web Analytics. `vercel: false` when the server already sends that step to Vercel.
+ * The older Umami events above keep their own names and data.
  */
-export function trackFunnel(step: FunnelStep, stay: FunnelStay, tries = 0) {
+export function trackFunnel(step: FunnelStep, stay: FunnelStay, options: { vercel?: boolean } = {}) {
   if (typeof window === "undefined") return;
+  track(step, umamiFunnelProps(stay));
+  if (options.vercel !== false) trackVercel(step, stay);
+}
+
+function trackVercel(step: FunnelStep, stay: FunnelStay, tries = 0) {
   // Effects in the page run before the <Analytics> component in the layout has set up window.va
   // (and its beforeSend, which strips query strings); until then the library drops events. Wait for it.
   if (!(window as { va?: unknown }).va) {
-    if (tries < 40) window.setTimeout(() => trackFunnel(step, stay, tries + 1), 100);
+    if (tries < 40) window.setTimeout(() => trackVercel(step, stay, tries + 1), 100);
     return;
   }
   try {

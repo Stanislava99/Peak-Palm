@@ -100,16 +100,25 @@ async function mail(to: string[], content: { subject: string; html: string; text
 }
 
 /**
- * Booking funnel event (Vercel Analytics) at most once per payment: a flag on the payment's metadata
+ * Booking funnel event at most once per payment (Vercel; and Umami for "payment failed", which
+ * happens on Stripe's page where Umami can't see it; Umami gets "succeeded" from the thank-you page): a flag on the payment's metadata
  * stops Stripe's retries and repeated events (succeeded + amount_capturable_updated) counting twice.
  * Analytics problems are logged, never passed on, so Stripe doesn't retry because of them.
  */
-async function trackOnce(stripe: Stripe, intent: Stripe.PaymentIntent, flag: string, step: FunnelStep, booking: Booking, headers: Headers) {
+async function trackOnce(
+  stripe: Stripe,
+  intent: Stripe.PaymentIntent,
+  flag: string,
+  step: FunnelStep,
+  booking: Booking,
+  headers: Headers,
+  options: { umami?: boolean } = {},
+) {
   try {
     const fresh = await stripe.paymentIntents.retrieve(intent.id);
     if (fresh.metadata?.[flag]) return;
     await stripe.paymentIntents.update(intent.id, { metadata: { [flag]: new Date().toISOString() } });
-    await trackFunnelServer(step, { house: booking.property, checkIn: booking.checkIn, checkOut: booking.checkOut, guests: booking.guests }, headers);
+    await trackFunnelServer(step, { house: booking.property, checkIn: booking.checkIn, checkOut: booking.checkOut, guests: booking.guests }, headers, options);
   } catch (error) {
     console.warn("Funnel event not recorded", step, (error as Error).message);
   }
@@ -135,7 +144,7 @@ async function handle(stripe: Stripe, type: string, intent: Stripe.PaymentIntent
     }
     if (paid) await trackOnce(stripe, intent, "trackedPaid", "Booking 6: payment succeeded", booking, headers);
     if (type === "payment_intent.payment_failed") {
-      await trackOnce(stripe, intent, "trackedFailed", "Booking 6: payment failed", booking, headers);
+      await trackOnce(stripe, intent, "trackedFailed", "Booking 6: payment failed", booking, headers, { umami: true });
     }
     return;
   }

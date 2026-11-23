@@ -88,6 +88,11 @@ export function CheckoutForm({
           setSending(false);
           return;
         }
+        // The server sends this step to Vercel; Umami needs it from the browser to keep it in the
+        // guest's visit (its funnel report follows one visitor). Umami sends with keepalive, and the
+        // short pause gives it a head start before the page changes.
+        trackFunnel("Booking 5: payment started", stay, { vercel: false });
+        await new Promise((resolve) => window.setTimeout(resolve, 150));
         window.location.assign(data.url);
         return;
       }

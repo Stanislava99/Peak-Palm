@@ -59,6 +59,10 @@ export default async function SuccessPage({ searchParams }: { searchParams: Prom
             <TrackOnce
               event="Booking paid"
               onceKey={booking.ref}
+              funnel={{
+                step: "Booking 6: payment succeeded",
+                stay: { house: booking.property, checkIn: booking.checkIn, checkOut: booking.checkOut, guests: booking.guests },
+              }}
               data={{
                 house: booking.property,
                 nights: Math.round((Date.parse(booking.checkOut) - Date.parse(booking.checkIn)) / 86_400_000),

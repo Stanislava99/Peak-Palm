@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { track, type TrackEvent } from "@/lib/track";
+import { track, trackFunnel, type TrackEvent } from "@/lib/track";
+import type { FunnelStay, FunnelStep } from "@/lib/funnel";
 
 /**
  * Sends one analytics event when a page loads (e.g. "Booking paid" on the thank-you page).
@@ -11,8 +12,11 @@ export function TrackOnce({
   event,
   data,
   onceKey,
+  funnel,
 }: {
   event: TrackEvent;
+  /** Also send this booking-funnel step to Umami (Vercel gets it from the server instead). */
+  funnel?: { step: FunnelStep; stay: FunnelStay };
   data?: Record<string, string | number | boolean>;
   onceKey?: string;
 }) {
@@ -27,6 +31,7 @@ export function TrackOnce({
       }
     }
     track(event, data);
+    if (funnel) trackFunnel(funnel.step, funnel.stay, { vercel: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return null;

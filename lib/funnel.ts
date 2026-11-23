@@ -1,12 +1,14 @@
 /**
- * Booking funnel events for Vercel Web Analytics (Analytics → Events in the Vercel dashboard).
- * Shared by the browser (lib/track.ts) and the server (lib/funnel-server.ts).
+ * Booking funnel events, sent to Umami (cloud.umami.is → Events, and a Funnel report) and to Vercel
+ * Web Analytics (recorded only on a Vercel Pro team). Shared by the browser (lib/track.ts) and the
+ * server (lib/funnel-server.ts).
  *
  * Each step sends one event, numbered so the list reads in funnel order:
  *   1 dates picked → 2 checkout clicked → 3 form filled → 4 form submitted
  *   → 5 payment started (or 5 request sent, when online payment is off)
  *   → 6 payment succeeded / failed / cancelled
  *
+ * Umami gets house, month, nights, guests, lead (0-7d / 8-30d / 31-90d / 90d+) and stay.
  * Vercel limits custom data per event by plan: Pro allows 2 properties, Pro with Web Analytics Plus
  * or Enterprise allow 8 (Hobby records no custom events at all). So by default every event carries
  * exactly two: `house` (kaja | janis) and `stay` ("2027-02 · 7n · 6g": check-in month, nights,
@@ -41,17 +43,29 @@ function leadBucket(days: number): string {
   return "90d+";
 }
 
-/** The custom data for one funnel event (2 properties, or 6 with Web Analytics Plus). */
-export function funnelProps({ house, checkIn, checkOut, guests }: FunnelStay, now = Date.now()): FunnelProps {
+function stayParts({ checkIn, checkOut }: FunnelStay, now: number) {
   const month = checkIn.slice(0, 7);
   const nights = Math.max(0, Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / DAY));
-  const props: FunnelProps = { house, stay: `${month} · ${nights}n · ${guests}g` };
+  const today = Date.parse(new Date(now).toISOString().slice(0, 10));
+  const lead = leadBucket(Math.round((Date.parse(checkIn) - today) / DAY));
+  return { month, nights, lead };
+}
+
+/** The custom data for one Vercel funnel event (2 properties, or 6 with Web Analytics Plus). */
+export function funnelProps(stay: FunnelStay, now = Date.now()): FunnelProps {
+  const { month, nights, lead } = stayParts(stay, now);
+  const props: FunnelProps = { house: stay.house, stay: `${month} · ${nights}n · ${stay.guests}g` };
   if (process.env.NEXT_PUBLIC_VERCEL_ANALYTICS_PLUS === "1") {
-    const today = Date.parse(new Date(now).toISOString().slice(0, 10));
     props.month = month;
     props.nights = nights;
-    props.guests = guests;
-    props.lead = leadBucket(Math.round((Date.parse(checkIn) - today) / DAY));
+    props.guests = stay.guests;
+    props.lead = lead;
   }
   return props;
+}
+
+/** The custom data for one Umami funnel event: no property limit to work around, so all of it. */
+export function umamiFunnelProps(stay: FunnelStay, now = Date.now()): FunnelProps {
+  const { month, nights, lead } = stayParts(stay, now);
+  return { house: stay.house, month, nights, guests: stay.guests, lead, stay: `${month} · ${nights}n · ${stay.guests}g` };
 }

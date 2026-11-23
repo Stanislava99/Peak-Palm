@@ -64,7 +64,9 @@ export function Analytics({ websiteId }: { websiteId: string | null }) {
   if (off) return null;
   return (
     <Script
-      id="umami"
+      // Not "umami": an element id becomes a window global, and the tracker only installs
+      // window.umami.track when window.umami is still empty (custom events were silently lost).
+      id="umami-tracker"
       src="/stats/script.js"
       strategy="afterInteractive"
       data-website-id={websiteId!}

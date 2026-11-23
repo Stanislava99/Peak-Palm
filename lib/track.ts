@@ -38,7 +38,7 @@ let flushing = false;
 /** Sends an event; if the Umami script hasn't loaded yet, retries for a few seconds. */
 export function track(name: TrackEvent | FunnelStep, data?: EventData) {
   if (typeof window === "undefined") return;
-  if (window.umami) {
+  if (typeof window.umami?.track === "function") {
     try {
       window.umami.track(name, data);
     } catch {
@@ -54,11 +54,11 @@ export function track(name: TrackEvent | FunnelStep, data?: EventData) {
   let tries = 0;
   const timer = window.setInterval(() => {
     tries += 1;
-    if (window.umami || tries > 20) {
+    if (typeof window.umami?.track === "function" || tries > 20) {
       window.clearInterval(timer);
       flushing = false;
       const pending = queue.splice(0);
-      if (window.umami) for (const [n, d] of pending) track(n, d);
+      if (typeof window.umami?.track === "function") for (const [n, d] of pending) track(n, d);
     }
   }, 250);
 }

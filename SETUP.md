@@ -131,9 +131,37 @@ When everything works on the test site, repeat steps 3–4 with live keys for th
 ## Visitor analytics (Umami Cloud)
 
 - Dashboard: https://cloud.umami.is.
-- **Test site:** reports to the Umami website for peak-and-palm-test.vercel.app (ID `5640458b-efcb-443e-aef5-850df991d8ca`, default in `lib/analytics.ts`).
-- **Live site:** add a second Umami website for the live address and set its ID as `UMAMI_WEBSITE_ID` on the `sea-and-ski-prod` Vercel project. Without it the live site sends nothing, so test and live numbers never mix.
+- **Test and live share one Umami website** (`5640458b-…`: the default in `lib/analytics.ts`, and the live project's `UMAMI_WEBSITE_ID`), because the Umami plan's website limit is reached. Keep them apart with the **Hostname** filter: `seaandskivillas.com` = real guests, `peak-and-palm-test.vercel.app` = tests. To separate fully, free a website slot in Umami, create one for the test address and set its ID as `UMAMI_WEBSITE_ID` on `sea-and-ski-test`.
 - Never on Vercel previews or localhost. Turn it off anywhere with `ANALYTICS=off`.
 - Script and data go through `/stats/…` on this site (rewrites in `next.config.ts`), so the CSP stays `'self'`. Admin, review and unsubscribe pages are never tracked. Query strings are stripped, so Stripe session IDs never reach Umami. No names, emails, phones or booking refs are sent.
 - Events (`lib/track.ts`): Calendar viewed, Calendar used, Dates selected, Price shown / Price failed, Continue to checkout, Checkout started, Pay deposit clicked, Checkout error, Booking request sent, Booking paid (with revenue), Question sent, Choose dates click, Airbnb click, Booking.com click, WhatsApp/Phone/Email/Social click. Most carry `house` (kaja/janis) and link clicks carry `place` (section of the page).
-- Funnel to create in Umami → Funnels: `/villa-kaja` or `/janis` page view → Calendar used → Dates selected → Checkout started → Pay deposit clicked → Booking paid.
+- Before Nov 2026 no custom event reached Umami (the tracker's `<script id="umami">` hid `window.umami.track`); only page views. Events count from the fix onwards.
+
+### Booking funnel ("Booking 1…6" events, `lib/funnel.ts`)
+
+One event per step, numbered so they sort in order. **Every** one carries: `house` (kaja = Villa Kaja, janis = Jani's Beach House), `month` (check-in month), `nights`, `guests`, `lead` (how far ahead: 0-7d / 8-30d / 31-90d / 90d+), `stay` (e.g. `2027-02 · 7n · 6g`) and, once the price is known, `price` (band, e.g. €1000-1999).
+
+| Event | When | Extra detail |
+|---|---|---|
+| Booking 1: dates picked | valid dates + guests chosen on a house page (each new choice) | |
+| Booking 2: checkout clicked | "Continue to checkout" | `place` (card / mobile-bar) |
+| Booking 2: checkout problem | checkout opened but can't continue | `reason`: no dates / dates not available / price not loaded |
+| Booking 3: form filled | name, email, phone valid + rules ticked | `seconds` it took |
+| Booking 3: form left | checkout closed/left without sending | `lastField` (name/email/phone/arrival/message/rules/offers/none), `fieldsDone` (0-4), `seconds` |
+| Booking 4: form submitted | Pay deposit / Request to book | `offers` (opted in), `message` (wrote one), `arrivalSet` (yes/no only) |
+| Booking 4: payment page error | Stripe page couldn't be opened | `reason` (dates just taken, price or bookings unavailable, details rejected, stripe error…), `status` |
+| Booking 5: payment started | guest sent to Stripe | `deposit` (€), `attempt` (1st, 2nd… try for this stay) |
+| Booking 5: request sent | only while online payment is off | |
+| Booking 6: payment succeeded | thank-you page after paying (once per booking) | `revenue` + `currency` (Umami Revenue report), `deposit`, `attempt`, `onStripe` (time on Stripe's page) |
+| Booking 6: payment failed | Stripe declined a payment (each failed attempt once; sent by the server) | `reason` (Stripe code: card_declined, insufficient_funds, expired_card, authentication_required…), `brand` (visa, mastercard…), `secure3d` (failed the bank check) |
+| Booking 6: payment cancelled | guest pressed back on Stripe's page | `attempt`, `onStripe` |
+
+Nothing personal is sent: no names, emails, phones, exact dates, booking refs or what people typed (only which field they were on). "Payment failed" comes from Stripe's server, so its country/device are meaningless and it isn't in the visitor's path; read only its count and properties. Guests who close the tab on Stripe's page show as "payment started" without an outcome.
+
+**Read it in Umami** (always add the filter Hostname = `seaandskivillas.com` for real guests):
+- **Where people drop off:** Reports → Funnel, steps of type Event: Booking 1: dates picked → Booking 2: checkout clicked → Booking 3: form filled → Booking 4: form submitted → Booking 5: payment started → Booking 6: payment succeeded. Window 60 min. Covers both houses.
+- **Which house / dates / prices:** Events → pick an event → **Properties** → `house`, `month`, `nights`, `guests`, `lead`, `price`. Per-house drop-off: read `house` on each step in turn.
+- **Why payments fail or stall:** Events → Booking 6: payment failed → `reason`, `brand`; Booking 6: payment cancelled → `onStripe`, `attempt`; Booking 4: payment page error → `reason`.
+- **Where in the form people quit:** Events → Booking 3: form left → `lastField`, `fieldsDone`.
+- **Revenue:** Reports → Revenue, event Booking 6: payment succeeded (stay totals in EUR).
+- Vercel Analytics also receives the funnel, but Vercel only records custom events on a Pro team.

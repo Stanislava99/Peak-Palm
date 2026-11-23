@@ -9,12 +9,36 @@ import { track, trackFunnel } from "@/lib/track";
 
 const ARRIVAL_TIMES = ["Not sure yet", "Before 4 pm", "4–6 pm", "6–8 pm", "8–10 pm", "After 10 pm"];
 
+/** Which form field an element is, for "form left" analytics (the field's name only, never its value). */
+function fieldOf(el: EventTarget | null): string | null {
+  if (!(el instanceof HTMLElement)) return null;
+  if (el instanceof HTMLTextAreaElement) return "message";
+  if (el instanceof HTMLSelectElement) return "arrival";
+  if (!(el instanceof HTMLInputElement)) return null;
+  if (el.type === "checkbox") return el.closest(".is-optional") ? "offers" : "rules";
+  if (el.autocomplete === "name") return "name";
+  if (el.type === "email") return "email";
+  if (el.type === "tel") return "phone";
+  return null;
+}
+
+/** Short reason for a failed /api/checkout call, by status (see app/api/checkout/route.ts). */
+function checkoutErrorReason(status: number): string {
+  if (status === 400) return "details rejected";
+  if (status === 409) return "dates just taken";
+  if (status === 429 || status === 403) return "blocked or too many tries";
+  if (status === 503) return "price or bookings unavailable";
+  if (status === 502) return "stripe error";
+  return `error ${status}`;
+}
+
 export function CheckoutForm({
   property,
   checkIn,
   checkOut,
   guests,
   deposit,
+  total,
   paymentsOn,
   houseName,
   cancelled = false,
@@ -24,6 +48,8 @@ export function CheckoutForm({
   checkOut: string;
   guests: number;
   deposit: number;
+  /** Direct price for the whole stay (analytics price band only). */
+  total?: number;
   paymentsOn: boolean;
   houseName: string;
   /** The guest came back from Stripe without paying (cancel_url adds cancelled=1). */
@@ -48,32 +74,64 @@ export function CheckoutForm({
     track("Checkout started", { house: property, nights, guests, deposit: Math.round(deposit) });
   }, [property, nights, guests, deposit]);
 
-  // Funnel (Vercel Analytics): came back from Stripe without paying, then filled in the form.
-  const stay = { house: property, checkIn, checkOut, guests };
+  // Booking funnel (Umami + Vercel): back from Stripe without paying, form filled, form left.
+  const stay = { house: property, checkIn, checkOut, guests, total };
   useEffect(() => {
     if (!cancelled) return;
     const url = new URL(window.location.href);
     url.searchParams.delete("cancelled"); // a reload must not count it again
     window.history.replaceState(window.history.state, "", url);
-    trackFunnel("Booking 6: payment cancelled", stay);
+    trackFunnel("Booking 6: payment cancelled", stay, { stripe: "end" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cancelled]);
+  const done = {
+    name: name.trim().length >= 2,
+    email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()),
+    phone: phone.replace(/\D/g, "").length >= 6,
+    rules: accepted,
+  };
+  const fieldsDone = Object.values(done).filter(Boolean).length;
+  const formComplete = fieldsDone === 4;
   const filled = useRef(false);
-  const formComplete =
-    name.trim().length >= 2 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && phone.replace(/\D/g, "").length >= 6 && accepted;
+  const startedAt = useRef(Date.now());
   useEffect(() => {
     if (!formComplete || filled.current) return;
     filled.current = true;
-    trackFunnel("Booking 3: form filled", stay);
+    trackFunnel("Booking 3: form filled", stay, { data: { seconds: Math.round((Date.now() - startedAt.current) / 1000) } });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formComplete]);
+  // Closing or leaving the checkout without sending: which field they were on and how far they got.
+  const lastField = useRef("none");
+  const submitted = useRef(false);
+  const leaveInfo = useRef({ fieldsDone: 0 });
+  leaveInfo.current = { fieldsDone };
+  useEffect(() => {
+    function onLeave() {
+      if (submitted.current) return;
+      submitted.current = true; // once per visit
+      trackFunnel("Booking 3: form left", stay, {
+        vercel: false,
+        data: {
+          lastField: lastField.current,
+          fieldsDone: leaveInfo.current.fieldsDone,
+          seconds: Math.round((Date.now() - startedAt.current) / 1000),
+        },
+      });
+    }
+    window.addEventListener("pagehide", onLeave);
+    return () => window.removeEventListener("pagehide", onLeave);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSending(true);
     setError(null);
     track("Pay deposit clicked", { house: property, nights, guests, deposit: Math.round(deposit), online: paymentsOn });
-    trackFunnel("Booking 4: form submitted", stay);
+    submitted.current = true;
+    trackFunnel("Booking 4: form submitted", stay, {
+      data: { offers: marketing, message: note.trim().length > 0, arrivalSet: arrival !== ARRIVAL_TIMES[0] },
+    });
     try {
       if (paymentsOn) {
         const response = await fetch("/api/checkout", {
@@ -84,6 +142,7 @@ export function CheckoutForm({
         const data = (await response.json()) as { url?: string; error?: string };
         if (!response.ok || !data.url) {
           track("Checkout error", { house: property, status: response.status });
+          trackFunnel("Booking 4: payment page error", stay, { data: { reason: checkoutErrorReason(response.status), status: response.status } });
           setError(data.error ?? "The payment page could not be opened.");
           setSending(false);
           return;
@@ -91,7 +150,7 @@ export function CheckoutForm({
         // The server sends this step to Vercel; Umami needs it from the browser to keep it in the
         // guest's visit (its funnel report follows one visitor). Umami sends with keepalive, and the
         // short pause gives it a head start before the page changes.
-        trackFunnel("Booking 5: payment started", stay, { vercel: false });
+        trackFunnel("Booking 5: payment started", stay, { vercel: false, stripe: "start", data: { deposit: Math.round(deposit) } });
         await new Promise((resolve) => window.setTimeout(resolve, 150));
         window.location.assign(data.url);
         return;
@@ -120,6 +179,7 @@ export function CheckoutForm({
         setRequestRef(data.id);
       }
     } catch {
+      trackFunnel("Booking 4: payment page error", stay, { data: { reason: "network or page error" } });
       setError("Something went wrong. Please try again.");
     }
     setSending(false);
@@ -137,7 +197,14 @@ export function CheckoutForm({
   }
 
   return (
-    <form className="checkout-card checkout-form" onSubmit={submit}>
+    <form
+      className="checkout-card checkout-form"
+      onSubmit={submit}
+      onFocusCapture={(event) => {
+        const field = fieldOf(event.target);
+        if (field) lastField.current = field;
+      }}
+    >
       {!paymentsOn ? (
         <div className="checkout-notice" role="note">
           <b>How payment works right now</b>

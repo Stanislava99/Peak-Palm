@@ -1,4 +1,5 @@
 import { CheckoutForm } from "@/components/CheckoutForm";
+import { TrackOnce } from "@/components/TrackOnce";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { Icon } from "@/components/Icons";
@@ -113,6 +114,15 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
 
         {problem ? (
           <div className="checkout-problem">
+            {isPropertyId(requested) ? (
+              <TrackOnce
+                funnel={{
+                  step: "Booking 2: checkout problem",
+                  stay: { house: property, checkIn: valid ? checkIn : "", checkOut: valid ? checkOut : "", guests },
+                  data: { reason: !valid ? "no dates" : verdict && !verdict.ok ? "dates not available" : "price not loaded" },
+                }}
+              />
+            ) : null}
             <p>{problem}</p>
             <a className="button primary" href={backToDates}>
               Back to the calendar
@@ -127,6 +137,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                 checkOut={checkOut}
                 guests={guests}
                 deposit={split!.deposit}
+                total={quote?.directTotal}
                 paymentsOn={paymentsEnabled(property)}
                 houseName={house.name}
                 cancelled={one(params.cancelled) === "1"}

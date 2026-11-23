@@ -123,7 +123,9 @@ export function Availability({
       guests,
       ...(quote ? { directTotal: Math.round(quote.directTotal) } : {}),
     });
-    if (checkIn && checkOut) trackFunnel("Booking 2: checkout clicked", { house: property, checkIn, checkOut, guests });
+    if (checkIn && checkOut) {
+      trackFunnel("Booking 2: checkout clicked", { house: property, checkIn, checkOut, guests, total: quote?.directTotal }, { data: { place } });
+    }
   }
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { track } from "@vercel/analytics/server";
 import { analyticsWebsiteId } from "./analytics";
-import { funnelProps, umamiFunnelProps, type FunnelStay, type FunnelStep } from "./funnel";
+import { funnelProps, umamiFunnelProps, type FunnelProps, type FunnelStay, type FunnelStep } from "./funnel";
 
 /**
  * Umami rejects requests without a browser-like User-Agent, and Stripe's own ("Stripe/1.0 (+https://…)")
@@ -9,7 +9,7 @@ import { funnelProps, umamiFunnelProps, type FunnelStay, type FunnelStep } from 
  */
 const SERVER_UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
-async function sendUmami(step: FunnelStep, stay: FunnelStay, headers: Headers) {
+async function sendUmami(step: FunnelStep, stay: FunnelStay, headers: Headers, extra: FunnelProps = {}) {
   const website = analyticsWebsiteId();
   if (!website) return; // analytics off here (local dev, previews, or the live site without its own ID)
   const hostname = headers.get("x-forwarded-host") ?? headers.get("host") ?? "";
@@ -18,7 +18,7 @@ async function sendUmami(step: FunnelStep, stay: FunnelStay, headers: Headers) {
     headers: { "Content-Type": "application/json", "User-Agent": SERVER_UA },
     body: JSON.stringify({
       type: "event",
-      payload: { website, hostname, url: "/checkout", language: "en", name: step, data: umamiFunnelProps(stay) },
+      payload: { website, hostname, url: "/checkout", language: "en", name: step, data: umamiFunnelProps(stay, extra) },
     }),
     signal: AbortSignal.timeout(4000),
   });
@@ -37,10 +37,10 @@ export async function trackFunnelServer(
   step: FunnelStep,
   stay: FunnelStay,
   headers: Headers,
-  options: { umami?: boolean } = {},
+  options: { umami?: boolean; data?: FunnelProps } = {},
 ): Promise<void> {
   const jobs: Array<Promise<unknown>> = [track(step, funnelProps(stay), { headers })];
-  if (options.umami) jobs.push(sendUmami(step, stay, headers));
+  if (options.umami) jobs.push(sendUmami(step, stay, headers, options.data));
   for (const result of await Promise.allSettled(jobs)) {
     if (result.status === "rejected") console.warn("Analytics event not sent", step, (result.reason as Error)?.message);
   }

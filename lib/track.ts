@@ -1,6 +1,6 @@
 /** Client-side helper for custom analytics events. Safe to call when analytics is off. */
 import { track as vercelTrack } from "@vercel/analytics";
-import { funnelProps, umamiFunnelProps, type FunnelStay, type FunnelStep } from "./funnel";
+import { funnelProps, stripeTimeBand, umamiFunnelProps, type FunnelProps, type FunnelStay, type FunnelStep } from "./funnel";
 
 type EventData = Record<string, string | number | boolean>;
 
@@ -63,14 +63,43 @@ export function track(name: TrackEvent | FunnelStep, data?: EventData) {
   }, 250);
 }
 
+type FunnelOptions = {
+  /** false when the server already sends this step to Vercel. */
+  vercel?: boolean;
+  /** Step-specific detail for Umami (never personal data). */
+  data?: FunnelProps;
+  /** "start": the guest is being sent to Stripe; "end": back from Stripe (paid or cancelled). */
+  stripe?: "start" | "end";
+};
+
+/**
+ * Payment attempts and time on Stripe's page, remembered in this browser tab only (sessionStorage,
+ * never sent anywhere except as the attempt number and a time band).
+ */
+function stripeVisit(stay: FunnelStay, phase: "start" | "end"): FunnelProps {
+  const key = `stripe:${stay.house}|${stay.checkIn}|${stay.checkOut}`;
+  try {
+    const saved = JSON.parse(window.sessionStorage.getItem(key) ?? "null") as { at: number; attempt: number } | null;
+    if (phase === "start") {
+      const attempt = (saved?.attempt ?? 0) + 1;
+      window.sessionStorage.setItem(key, JSON.stringify({ at: Date.now(), attempt }));
+      return { attempt };
+    }
+    if (!saved) return {};
+    return { attempt: saved.attempt, onStripe: stripeTimeBand(Date.now() - saved.at) };
+  } catch {
+    return {};
+  }
+}
+
 /**
  * One booking-funnel step (see lib/funnel.ts for names and properties), sent to Umami and to
- * Vercel Web Analytics. `vercel: false` when the server already sends that step to Vercel.
- * The older Umami events above keep their own names and data.
+ * Vercel Web Analytics. The older Umami events above keep their own names and data.
  */
-export function trackFunnel(step: FunnelStep, stay: FunnelStay, options: { vercel?: boolean } = {}) {
+export function trackFunnel(step: FunnelStep, stay: FunnelStay, options: FunnelOptions = {}) {
   if (typeof window === "undefined") return;
-  track(step, umamiFunnelProps(stay));
+  const visit = options.stripe ? stripeVisit(stay, options.stripe) : {};
+  track(step, umamiFunnelProps(stay, { ...visit, ...options.data }));
   if (options.vercel !== false) trackVercel(step, stay);
 }
 

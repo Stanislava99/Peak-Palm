@@ -61,7 +61,17 @@ export default async function SuccessPage({ searchParams }: { searchParams: Prom
               onceKey={booking.ref}
               funnel={{
                 step: "Booking 6: payment succeeded",
-                stay: { house: booking.property, checkIn: booking.checkIn, checkOut: booking.checkOut, guests: booking.guests },
+                stay: {
+                  house: booking.property,
+                  checkIn: booking.checkIn,
+                  checkOut: booking.checkOut,
+                  guests: booking.guests,
+                  total: booking.directTotal,
+                },
+                // revenue + currency feed Umami's Revenue report; Vercel gets this step from the webhook.
+                data: { revenue: Math.round(booking.directTotal), currency: "EUR", deposit: Math.round(booking.deposit) },
+                vercel: false,
+                stripe: "end",
               }}
               data={{
                 house: booking.property,

@@ -24,6 +24,8 @@ const paths = {
   check: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z M8 12.5l2.6 2.6L16 9.5",
   tag: "M3 12V4h8l10 10-8 8Z M7.5 8a.5.5 0 1 0 0-.01",
   lock: "M6 11h12v10H6Z M8.5 11V7.5a3.5 3.5 0 0 1 7 0V11 M12 15v2.5",
+  phone: "M5 3.5h3.5l1.5 4.5-2.2 1.4a11 11 0 0 0 5.8 5.8l1.4-2.2 4.5 1.5V18a2 2 0 0 1-2 2A15.5 15.5 0 0 1 3 5.5a2 2 0 0 1 2-2Z",
+  mail: "M3 6h18v12H3Z M3 7l9 6.5L21 7",
 } as const;
 
 export type IconName = keyof typeof paths;

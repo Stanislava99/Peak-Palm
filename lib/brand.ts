@@ -10,6 +10,8 @@ export const brand = {
   /** Preferred domain (not bought yet). Set NEXT_PUBLIC_SITE_URL to https://<domain> in production. */
   domain: "seaandskivillas.com",
   host: "Frosina",
+  /** Frosina and her husband run Sea & Ski together. */
+  hosts: "Frosina & Nikola",
   colors: {
     navy: "#123b5a",
     sea: "#6f9fb5",

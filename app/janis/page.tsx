@@ -133,7 +133,7 @@ export default async function JanisPage() {
               room below, opening onto the backyard.
             </p>
             <p>
-              Host Frosina looks after this house and Villa Kaja in Bansko.
+              Frosina and her husband Nikola look after this house and Villa Kaja in Bansko.
             </p>
             <ul className="house-points">
               <li>Exclusive use for one group</li>

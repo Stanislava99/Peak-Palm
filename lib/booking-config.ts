@@ -10,6 +10,8 @@ export const HOLD_DAYS = 7;
 export const BALANCE_WHEN = "paid on site, on arrival";
 /** What the guest is told about response time. */
 export const HOST_REPLY = "within 48 hours";
+/** How fast Frosina answers questions (ask form, phone, email). Booking confirmations use HOST_REPLY. */
+export const QUESTION_REPLY = "within 24 hours";
 
 /** Guests may cancel within this many hours of paying the deposit and get it back, minus Stripe's fee. */
 export const CANCEL_HOURS = 48;

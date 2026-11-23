@@ -14,6 +14,11 @@ export type Host = {
   superhost: boolean;
   languages: string[];
   houses: PropertyId[];
+  /** Phone in international format, e.g. "+359 88 123 4567". null hides it on the site. */
+  phone: string | null;
+  /** Show WhatsApp / Viber buttons for this number. */
+  whatsapp: boolean;
+  viber: boolean;
 };
 
 export const HOSTS: Host[] = [
@@ -21,10 +26,25 @@ export const HOSTS: Host[] = [
     name: "Frosina",
     role: "Your host · with her family",
     photo: null,
-    bio: "Sea & Ski is a family business. Frosina runs both houses together with her husband, their daughter and their son: Villa Kaja in the mountains at Bansko, and Jani’s Beach House by the sea in Neoi Epivates. Book direct and you deal with the family from the first question to the keys: arrival times, extra beds, where to eat, how the sauna works.",
+    bio: "Sea & Ski is a family business. Frosina runs both houses together with her husband Nikola, their daughter and their son: Villa Kaja in the mountains at Bansko, and Jani’s Beach House by the sea in Neoi Epivates. Book direct and you deal with the family from the first question to the keys: arrival times, extra beds, where to eat, how the sauna works.",
     superhost: true,
     languages: [],
     houses: ["kaja", "janis"],
+    phone: "+389 71 210 254",
+    whatsapp: true,
+    viber: true,
+  },
+  {
+    name: "Nikola",
+    role: "Your host · Frosina’s husband",
+    photo: null,
+    bio: "Call Nikola or Frosina, whichever suits you: they both know the two houses inside out and can help with anything about your stay.",
+    superhost: true,
+    languages: [],
+    houses: ["kaja", "janis"],
+    phone: "+359 89 729 8601",
+    whatsapp: true,
+    viber: true,
   },
 ];
 
@@ -39,6 +59,11 @@ export function hostsFor(property: PropertyId) {
  */
 export const FAMILY = {
   photo: "/hosts/family.jpg" as string | null,
-  alt: "Frosina with her husband, daughter and son",
-  caption: "Frosina and her family, who look after both houses",
+  alt: "Frosina with her husband Nikola, their daughter and son",
+  caption: "Frosina, Nikola and their family, who look after both houses",
 };
+
+/** Digits only, for wa.me / viber links. */
+export function phoneDigits(phone: string) {
+  return phone.replace(/[^\d]/g, "").replace(/^00/, "");
+}

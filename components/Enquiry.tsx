@@ -1,5 +1,6 @@
 "use client";
 
+import { QUESTION_REPLY } from "@/lib/booking-config";
 import { useState, type FormEvent } from "react";
 import type { PropertyId } from "@/lib/properties";
 import { track } from "@/lib/track";
@@ -42,7 +43,7 @@ export function AskForm({ property, hostName }: { property: PropertyId; hostName
       <div className="reserve-done ask-done">
         <strong>Question sent</strong>
         <p>
-          {hostName} will reply to {email}.
+          {hostName} will reply to {email} {QUESTION_REPLY}.
         </p>
       </div>
     );

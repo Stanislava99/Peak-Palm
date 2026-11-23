@@ -9,6 +9,7 @@ const sectionLinks = [
   { href: "#gallery", label: "Gallery" },
   { href: "#stay", label: "Availability" },
   { href: "#location", label: "Location" },
+  { href: "#contact", label: "Contact" },
 ];
 
 type Props = {
@@ -38,6 +39,7 @@ export function Header({ sections = true, sibling, house, discount = DEFAULT_DIS
     : [
         { href: "/villa-kaja", label: "Villa Kaja" },
         { href: "/janis", label: "Jani’s Beach House" },
+        { href: "#contact", label: "Contact" },
       ];
 
   return (

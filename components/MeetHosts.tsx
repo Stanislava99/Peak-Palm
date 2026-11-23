@@ -1,7 +1,9 @@
 import Image from "next/image";
-import { HOST_REPLY } from "@/lib/booking-config";
+import { brand } from "@/lib/brand";
+import { QUESTION_REPLY } from "@/lib/booking-config";
 import { FAMILY, hostsFor } from "@/lib/hosts";
 import type { PropertyId } from "@/lib/properties";
+import { ContactLines } from "./ContactUs";
 import { AskForm } from "./Enquiry";
 import { Icon } from "./Icons";
 
@@ -70,21 +72,25 @@ export function MeetHosts({
             ) : null}
             <div>
               <dt>Replies</dt>
-              <dd className="is-text">{HOST_REPLY}</dd>
+              <dd className="is-text">{QUESTION_REPLY}</dd>
             </div>
           </dl>
         </div>
       </div>
 
-      <div className="hosts-ask">
+      <div id="contact" className="hosts-ask">
         <div className="hosts-ask-intro">
-          <Icon name="chat" size={26} />
+          <p className="eyebrow">Contact us</p>
           <h3>
             Ask {plural ? "us" : lead?.name ?? "the host"} about {house}
           </h3>
-          <p>Arrival times, extra beds, the area: anything. You’ll get a reply by email. A question doesn’t hold any dates.</p>
+          <p>
+            Arrival times, extra beds, the area: anything. Write to us here and {brand.host} will reply by email{" "}
+            {QUESTION_REPLY}, or call {plural ? names : "us"} directly. A question doesn’t hold any dates.
+          </p>
         </div>
-        <AskForm property={property} hostName={plural ? "We" : lead?.name ?? "The host"} />
+        <AskForm property={property} hostName={brand.host} />
+        <ContactLines />
       </div>
     </section>
   );

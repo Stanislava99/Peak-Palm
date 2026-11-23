@@ -1,5 +1,7 @@
 import { brand } from "@/lib/brand";
+import { HOSTS } from "@/lib/hosts";
 import { properties } from "@/lib/properties";
+import { contactEmail } from "@/lib/site-config";
 import { Lockup } from "./Logo";
 
 export function Footer({ address }: { address?: string }) {
@@ -42,6 +44,16 @@ export function Footer({ address }: { address?: string }) {
           <a href="/janis#stay">Summer dates</a>
           <a href="/villa-kaja#ask">Ask the host</a>
         </div>
+        <div>
+          <h2>Contact us</h2>
+          {HOSTS.filter((h) => h.phone).map((h) => (
+            <a key={h.name} className="footer-phone" href={`tel:${h.phone!.replace(/\s/g, "")}`}>
+              {h.name} · {h.phone}
+            </a>
+          ))}
+          <a href={`mailto:${contactEmail()}`}>{contactEmail()}</a>
+          <a href="/#contact">All contact details</a>
+        </div>
       </div>
       <div className="footer-base">
         <span>
@@ -49,7 +61,7 @@ export function Footer({ address }: { address?: string }) {
           {address ? ` · ${address}` : ""}
         </span>
         <span>
-          Hosted by {brand.host} · <a href="/privacy">Privacy</a>
+          Hosted by {brand.hosts} · <a href="/privacy">Privacy</a>
         </span>
         <a className="footer-credit" href="https://lunadigital.pro/index.html" target="_blank" rel="noopener">
           Made by

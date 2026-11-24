@@ -884,7 +884,7 @@ body { -webkit-font-smoothing: antialiased; }
 }
 .how-steps svg { color: var(--gold-soft); }
 .how-steps h3 { font-size: 1.7rem; margin: 18px 0 8px; }
-@media (max-width: 1180px) and (min-width: 901px) { .how-steps { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 1300px) and (min-width: 901px) { .how-steps { grid-template-columns: repeat(2, 1fr); } }
 .how-steps p { margin: 0; color: rgba(247, 243, 234, 0.78); }
 
 /* Footer */
@@ -2883,11 +2883,11 @@ a.adm-kpi:hover { border-color: var(--sea); }
 .faq-list details[open] summary::after { content: "–"; }
 .faq-list details p { margin: 10px 0 0; color: var(--muted); max-width: 70ch; }
 #reviews { scroll-margin-top: 120px; }
-@media (max-width: 1180px) and (min-width: 901px) {
+@media (max-width: 1300px) and (min-width: 901px) {
   .site-header nav { gap: 14px; flex-shrink: 0; }
   .site-header nav a { font-size: 0.9rem; }
 }
 /* Between the phone menu and full desktop, keep the bar to its original links; the Reviews and FAQ links show on wider screens and in the phone menu. */
-@media (max-width: 1040px) and (min-width: 901px) {
+@media (max-width: 1120px) and (min-width: 901px) {
   .site-header nav .nav-extra { display: none; }
 }

@@ -40,7 +40,7 @@ export function Header({ sections = true, sibling, house, discount = DEFAULT_DIS
 
   const links: Array<{ href: string; label: string; extra?: boolean }> = sections
     ? skiRental
-      ? [...sectionLinks.slice(0, 3), { href: "/ski-rental", label: "Skis & school" }, ...sectionLinks.slice(3)]
+      ? [...sectionLinks.slice(0, 3), { href: "/ski-rental", label: "Skis & school", extra: true }, ...sectionLinks.slice(3)]
       : sectionLinks
     : [
         { href: "/villa-kaja", label: "Villa Kaja" },

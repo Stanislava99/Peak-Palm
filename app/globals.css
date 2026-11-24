@@ -884,7 +884,7 @@ body { -webkit-font-smoothing: antialiased; }
 }
 .how-steps svg { color: var(--gold-soft); }
 .how-steps h3 { font-size: 1.7rem; margin: 18px 0 8px; }
-@media (max-width: 1300px) and (min-width: 901px) { .how-steps { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 1180px) and (min-width: 901px) { .how-steps { grid-template-columns: repeat(2, 1fr); } }
 .how-steps p { margin: 0; color: rgba(247, 243, 234, 0.78); }
 
 /* Footer */

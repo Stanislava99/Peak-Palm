@@ -25,9 +25,9 @@ const house = getProperty("kaja");
 const AIRBNB_URL = house.airbnbUrl;
 
 const description =
-  "Private holiday house in Bansko, Bulgaria, for groups of up to 15 guests. Five bedrooms, each with a bathroom, a private sauna, ski storage, parking, and about a five-minute walk to the gondola.";
+  "Private holiday house in Bansko, Bulgaria, for groups of up to 15 guests. Five bedrooms, each with a bathroom, a private sauna, ski storage, parking, and about 200 metres from the gondola.";
 
-const title = "Villa Kaja Bansko — group chalet for 15 near the gondola";
+const title = "Villa Kaja Bansko — group chalet for 15, 200 m from the gondola";
 
 export const metadata = {
   title,
@@ -45,7 +45,7 @@ const facts = [
   { value: String(house.maxGuests), label: "Guests" },
   { value: "5", label: "Bedrooms" },
   { value: "5.5", label: "Bathrooms" },
-  { value: "5 min", label: "To the gondola" },
+  { value: "200 m", label: "To the gondola" },
 ];
 
 const amenities: Array<[IconName, string, string]> = [
@@ -58,7 +58,7 @@ const amenities: Array<[IconName, string, string]> = [
 ];
 
 const groupTypes: GroupType[] = [
-  ["ski", "Ski groups", "The gondola is about five minutes on foot. Skis go on the rack by the door, and the day ends in the sauna."],
+  ["ski", "Ski groups", "The gondola is about 200 metres away. Skis go on the rack by the door, and the day ends in the sauna."],
   ["bed", "Families", "Five bedrooms, each with its own bathroom, a kitchen for everyone's meals, and a quiet residential street."],
   ["kitchen", "Friends together", "One house instead of several hotel rooms, and one dining table that seats the whole group."],
 ];
@@ -73,7 +73,7 @@ function faqs(discountLabel: string): FaqItem[] {
     {
       question: "Is Villa Kaja close to the gondola?",
       answer:
-        "Yes. The gondola lift is about a five-minute walk from the house, so you can leave the car parked for the whole week. Restaurants and the centre of Bansko are also within walking distance.",
+        "Yes. The gondola lift is about 200 metres from the house, a few minutes on foot, so you can leave the car parked for the whole week. Restaurants and the centre of Bansko are also within walking distance.",
     },
     {
       question: "Is the house good for a ski group or a big family?",
@@ -131,7 +131,7 @@ export default async function VillaKajaPage() {
           <div className="hero-copy">
             <p className="eyebrow light">Ski · Bansko · Sveti Ivan Rilski 18</p>
             <h1 className="hero-title">Villa Kaja</h1>
-            <p className="hero-sub">A private chalet, five minutes from the gondola.</p>
+            <p className="hero-sub">A private chalet, 200 metres from the gondola.</p>
             <p className="lede">
               Villa Kaja is booked as a whole house for families and groups of friends. Walk to the lifts in the
               morning and come back to your own sauna, kitchen, and living room.
@@ -234,7 +234,7 @@ export default async function VillaKajaPage() {
 
         <GroupsBand
           maxGuests={house.maxGuests}
-          intro="Four double or triple bedrooms and an apartment for four, all under one roof, about five minutes on foot from the gondola."
+          intro="Four double or triple bedrooms and an apartment for four, all under one roof, about 200 metres from the gondola."
           types={groupTypes}
         />
 
@@ -247,11 +247,11 @@ export default async function VillaKajaPage() {
             <p className="eyebrow">Location</p>
             <h2>18 Sveti Ivan Rilski Street, Bansko</h2>
             <p>
-              About a five-minute walk to the gondola, with the ski area, restaurants, and the rest of town close
+              About 200 metres from the gondola, with the ski area, restaurants, and the rest of town close
               enough to skip a taxi. Sofia airport is roughly a two-and-a-half-hour drive.
             </p>
             <ul className="nearby">
-              <li>Gondola lift · about 5 minutes on foot</li>
+              <li>Gondola lift · about 200 m on foot</li>
               <li>Bansko ski area · a short walk</li>
               <li>Town restaurants and bars · nearby</li>
               <li>Quiet hours overnight on a residential street</li>
@@ -286,10 +286,10 @@ export default async function VillaKajaPage() {
             identifier: "villa-kaja",
             name: "Villa Kaja",
             alternateName: ["Villa Kaja Bansko", "Vila Kaja", "Вила Кая", "Вила Кая Банско"],
-            sameAs: [house.airbnbUrl, house.bookingUrl].filter(Boolean),
+            sameAs: [house.airbnbUrl, house.bookingUrl, house.vrboUrl].filter(Boolean),
             url: `${getSiteUrl()}/villa-kaja`,
             image: photos.map((p) => `${getSiteUrl()}${p.src}`),
-            description: `Private holiday chalet in Bansko for groups of up to ${house.maxGuests} guests, with five bedrooms, a private sauna, and the gondola about five minutes on foot.`,
+            description: `Private holiday chalet in Bansko for groups of up to ${house.maxGuests} guests, with five bedrooms, a private sauna, and the gondola about 200 metres away.`,
             address: {
               "@type": "PostalAddress",
               streetAddress: "18 Sveti Ivan Rilski Street",

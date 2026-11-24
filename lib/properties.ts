@@ -23,6 +23,8 @@ export type Property = {
   airbnbUrl: string;
   bookingUrl: string | null;
   bookingName: string | null;
+  /** Vrbo listing, linked from the house page's structured data (sameAs). */
+  vrboUrl: string | null;
   reservePrefix: string;
   ratingFallback: RatingFallback;
   bookingFallback: { scoreLabel: string; reviewCount: number } | null;
@@ -70,6 +72,7 @@ export const properties: Record<PropertyId, Property> = {
     airbnbUrl: "https://www.airbnb.com/rooms/1849518",
     bookingUrl: "https://www.booking.com/hotel/bg/villa-kaja-bansko-bansko.en-gb.html",
     bookingName: "Villa Kaja",
+    vrboUrl: "https://www.vrbo.com/1876010ha",
     reservePrefix: "VK",
     ratingFallback: kajaRating,
     bookingFallback: { scoreLabel: "Exceptional", reviewCount: 16 },
@@ -83,6 +86,7 @@ export const properties: Record<PropertyId, Property> = {
     airbnbUrl: "https://www.airbnb.com/rooms/26322352",
     bookingUrl: null,
     bookingName: null,
+    vrboUrl: null,
     reservePrefix: "JB",
     ratingFallback: janisRating,
     bookingFallback: null,

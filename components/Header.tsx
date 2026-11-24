@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import { DEFAULT_DISCOUNT, discountLabel } from "@/lib/price-math";
 import { Lockup } from "./Logo";
 
-const sectionLinks = [
+const sectionLinks: Array<{ href: string; label: string; extra?: boolean }> = [
   { href: "#house", label: "The house" },
   { href: "#gallery", label: "Gallery" },
   { href: "#stay", label: "Availability" },
-  { href: "#location", label: "Location" },
+  { href: "#reviews", label: "Reviews", extra: true },
   { href: "#contact", label: "Contact" },
+  { href: "#faq", label: "FAQ", extra: true },
+  { href: "#location", label: "Location" },
 ];
 
 type Props = {
@@ -34,7 +36,7 @@ export function Header({ sections = true, sibling, house, discount = DEFAULT_DIS
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const links = sections
+  const links: Array<{ href: string; label: string; extra?: boolean }> = sections
     ? sectionLinks
     : [
         { href: "/villa-kaja", label: "Villa Kaja" },
@@ -67,7 +69,7 @@ export function Header({ sections = true, sibling, house, discount = DEFAULT_DIS
       ) : null}
       <nav className={open ? "is-open" : ""} aria-label="Main">
         {links.map((link) => (
-          <a key={link.href} href={link.href} onClick={() => setOpen(false)}>
+          <a key={link.href} href={link.href} className={link.extra ? "nav-extra" : undefined} onClick={() => setOpen(false)}>
             {link.label}
           </a>
         ))}

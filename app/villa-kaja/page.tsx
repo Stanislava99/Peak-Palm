@@ -207,6 +207,8 @@ export default async function VillaKajaPage() {
           paymentsOn={paymentsEnabled("kaja")}
         />
 
+        <RentalTeaser />
+
         <GuestScore
           score={rating.score}
           live={rating.live}
@@ -238,8 +240,6 @@ export default async function VillaKajaPage() {
           intro="Four double or triple bedrooms and an apartment for four, all under one roof, about five minutes on foot from the gondola."
           types={groupTypes}
         />
-
-        <RentalTeaser />
 
         <MeetHosts property="kaja" house="Villa Kaja" reviewCount={rating.count} communication={rating.categories.communication} />
 

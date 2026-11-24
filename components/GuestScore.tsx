@@ -78,7 +78,7 @@ export function GuestScore({
   );
 
   return (
-    <section className={`rating${withReviews ? " has-reviews" : ""}`} aria-label="Guest rating">
+    <section id="reviews" className={`rating${withReviews ? " has-reviews" : ""}`} aria-label="Guest rating">
       <div className="rating-summary">
         <p className="eyebrow">Guest rating</p>
         <div className="rating-score">

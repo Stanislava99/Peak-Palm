@@ -2736,8 +2736,52 @@ a.adm-kpi:hover { border-color: var(--sea); }
 }
 
 /* ───────────── Villa Kaja: groups and FAQ ───────────── */
-.groups { background: var(--white); }
-.groups .house-points { max-width: 720px; margin-top: 0; }
+.groups {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 48px;
+  align-items: center;
+  background: var(--pine-deep);
+  color: var(--paper);
+}
+.groups h2 { font-size: clamp(2.2rem, 4vw, 3.4rem); color: var(--white); }
+.groups-intro p:not(.eyebrow) { color: var(--mist); max-width: 440px; }
+.groups-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--gold-soft);
+  font-weight: 600;
+  text-decoration: none;
+}
+.groups-link:hover { color: var(--white); }
+.groups-cards { display: grid; gap: 12px; }
+.groups-cards article {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 20px 22px;
+  border-radius: 20px;
+  background: rgba(247, 243, 234, 0.06);
+  border: 1px solid rgba(247, 243, 234, 0.14);
+}
+.groups-icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(216, 185, 135, 0.16);
+  color: var(--gold-soft);
+}
+.groups-cards h3 { font-size: 1.4rem; margin: 0 0 4px; color: var(--white); }
+.groups-cards p { margin: 0; color: var(--mist); font-size: 0.98rem; }
+@media (max-width: 900px) {
+  .groups { grid-template-columns: 1fr; gap: 28px; }
+}
+
 .faq-list { max-width: 820px; border-top: 1px solid var(--line); }
 .faq-list details { border-bottom: 1px solid var(--line); padding: 18px 0; }
 .faq-list summary {

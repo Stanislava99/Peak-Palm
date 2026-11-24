@@ -55,12 +55,10 @@ const amenities: Array<[IconName, string, string]> = [
   ["parking", "Parking", "Private parking on the property, on a quiet residential street."],
 ];
 
-const groupPoints = [
-  "Four double or triple bedrooms and one apartment for four, each with its own bathroom",
-  "One dining table that seats the whole group",
-  "A private sauna for after the slopes",
-  "A ski rack by the door and parking on the property",
-  "About five minutes on foot to the gondola, so nobody waits for a ride",
+const groupTypes: Array<[IconName, string, string]> = [
+  ["ski", "Ski groups", "The gondola is about five minutes on foot. Skis go on the rack by the door, and the day ends in the sauna."],
+  ["bed", "Families", "Five bedrooms, each with its own bathroom, a kitchen for everyone's meals, and a quiet residential street."],
+  ["kitchen", "Friends together", "One house instead of several hotel rooms, and one dining table that seats the whole group."],
 ];
 
 function faqs(discountLabel: string): Array<{ question: string; answer: string }> {
@@ -185,28 +183,26 @@ export default async function VillaKajaPage() {
           </div>
         </section>
 
-        <section id="groups" className="section groups">
-          <div className="section-head">
-            <p className="eyebrow">Groups and families</p>
-            <h2>A whole house in Bansko for up to {house.maxGuests} people</h2>
-            <p>
-              Villa Kaja is for ski groups, families travelling together, and friends who want one house instead of
-              several hotel rooms. Everyone sleeps under one roof, eats at one table, and walks to the gondola
-              together in the morning.
-            </p>
-          </div>
-          <ul className="house-points">
-            {groupPoints.map((point) => (
-              <li key={point}>{point}</li>
-            ))}
-          </ul>
-        </section>
-
         <Gallery
           photos={photos}
           rooms={rooms}
           title="The chalet, room by room"
           intro="Move through the house the way a guest does, from the street to the sauna."
+        />
+
+        <Availability
+          discount={discount}
+          property="kaja"
+          maxGuests={house.maxGuests}
+          defaultGuests={house.defaultGuests}
+          kicker={`Whole chalet · up to ${house.maxGuests} guests`}
+          finePrint="Check-in after 4:00 pm. Check-out by 11:00 am. The house is reserved for your group only."
+          airbnbUrl={AIRBNB_URL}
+          intro={`Pick your dates and guests to see your direct price, ${DIRECT_DISCOUNT_LABEL} below booking platforms. At checkout you pay a 50% deposit (the rest paid on site, on arrival); the host then confirms your booking by email.`}
+          initialDays={firstMonths(calendar.days)}
+          initialError={calendar.error}
+          initialSources={calendar.sources}
+          paymentsOn={paymentsEnabled("kaja")}
         />
 
         <GuestScore
@@ -235,20 +231,30 @@ export default async function VillaKajaPage() {
           </div>
         </section>
 
-        <Availability
-          discount={discount}
-          property="kaja"
-          maxGuests={house.maxGuests}
-          defaultGuests={house.defaultGuests}
-          kicker={`Whole chalet · up to ${house.maxGuests} guests`}
-          finePrint="Check-in after 4:00 pm. Check-out by 11:00 am. The house is reserved for your group only."
-          airbnbUrl={AIRBNB_URL}
-          intro={`Pick your dates and guests to see your direct price, ${DIRECT_DISCOUNT_LABEL} below booking platforms. At checkout you pay a 50% deposit (the rest paid on site, on arrival); the host then confirms your booking by email.`}
-          initialDays={firstMonths(calendar.days)}
-          initialError={calendar.error}
-          initialSources={calendar.sources}
-          paymentsOn={paymentsEnabled("kaja")}
-        />
+        <section id="groups" className="section groups" aria-labelledby="groups-title">
+          <div className="groups-intro">
+            <p className="eyebrow light">Groups and families</p>
+            <h2 id="groups-title">One house for up to {house.maxGuests} people</h2>
+            <p>
+              Four double or triple bedrooms and an apartment for four, all under one roof, about five minutes on foot
+              from the gondola.
+            </p>
+            <a className="groups-link" href="#stay">
+              Check dates for your group <Icon name="arrow" size={18} />
+            </a>
+          </div>
+          <div className="groups-cards">
+            {groupTypes.map(([icon, title, text]) => (
+              <article key={title}>
+                <span className="groups-icon"><Icon name={icon} size={22} /></span>
+                <div>
+                  <h3>{title}</h3>
+                  <p>{text}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
 
         <MeetHosts property="kaja" house="Villa Kaja" reviewCount={rating.count} communication={rating.categories.communication} />
 

@@ -2,7 +2,9 @@ import { Availability } from "@/components/Availability";
 import { MeetHosts } from "@/components/MeetHosts";
 import { Gallery } from "@/components/Gallery";
 import { GuestScore, Stars } from "@/components/GuestScore";
+import { Faq, type FaqItem } from "@/components/Faq";
 import { Footer } from "@/components/Footer";
+import { GroupsBand, type GroupType } from "@/components/GroupsBand";
 import { Header } from "@/components/Header";
 import { Icon, type IconName } from "@/components/Icons";
 import { photos, rooms } from "@/lib/photos";
@@ -55,13 +57,13 @@ const amenities: Array<[IconName, string, string]> = [
   ["parking", "Parking", "Private parking on the property, on a quiet residential street."],
 ];
 
-const groupTypes: Array<[IconName, string, string]> = [
+const groupTypes: GroupType[] = [
   ["ski", "Ski groups", "The gondola is about five minutes on foot. Skis go on the rack by the door, and the day ends in the sauna."],
   ["bed", "Families", "Five bedrooms, each with its own bathroom, a kitchen for everyone's meals, and a quiet residential street."],
   ["kitchen", "Friends together", "One house instead of several hotel rooms, and one dining table that seats the whole group."],
 ];
 
-function faqs(discountLabel: string): Array<{ question: string; answer: string }> {
+function faqs(discountLabel: string): FaqItem[] {
   return [
     {
       question: "How many people can stay at Villa Kaja?",
@@ -107,7 +109,6 @@ const categories: Array<[keyof AirbnbRating["categories"], string]> = [
 export default async function VillaKajaPage() {
   const discount = (await houseDiscounts()).kaja;
   const DIRECT_DISCOUNT_LABEL = discountLabel(discount);
-  const faqList = faqs(DIRECT_DISCOUNT_LABEL);
   const [rating, reviews, calendar] = await Promise.all([
     fetchAirbnbRating(),
     Promise.all([publishedDirectReviews("kaja"), fetchAirbnbReviews("kaja")]).then(([direct, airbnb]) => [...direct, ...airbnb]),
@@ -231,47 +232,15 @@ export default async function VillaKajaPage() {
           </div>
         </section>
 
-        <section id="groups" className="section groups" aria-labelledby="groups-title">
-          <div className="groups-intro">
-            <p className="eyebrow light">Groups and families</p>
-            <h2 id="groups-title">One house for up to {house.maxGuests} people</h2>
-            <p>
-              Four double or triple bedrooms and an apartment for four, all under one roof, about five minutes on foot
-              from the gondola.
-            </p>
-            <a className="groups-link" href="#stay">
-              Check dates for your group <Icon name="arrow" size={18} />
-            </a>
-          </div>
-          <div className="groups-cards">
-            {groupTypes.map(([icon, title, text]) => (
-              <article key={title}>
-                <span className="groups-icon"><Icon name={icon} size={22} /></span>
-                <div>
-                  <h3>{title}</h3>
-                  <p>{text}</p>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+        <GroupsBand
+          maxGuests={house.maxGuests}
+          intro="Four double or triple bedrooms and an apartment for four, all under one roof, about five minutes on foot from the gondola."
+          types={groupTypes}
+        />
 
         <MeetHosts property="kaja" house="Villa Kaja" reviewCount={rating.count} communication={rating.categories.communication} />
 
-        <section id="faq" className="section faq">
-          <div className="section-head">
-            <p className="eyebrow">Questions</p>
-            <h2>Before you book</h2>
-          </div>
-          <div className="faq-list">
-            {faqList.map((item) => (
-              <details key={item.question}>
-                <summary>{item.question}</summary>
-                <p>{item.answer}</p>
-              </details>
-            ))}
-          </div>
-        </section>
+        <Faq items={faqs(DIRECT_DISCOUNT_LABEL)} />
 
         <section id="location" className="section location">
           <div>
@@ -345,20 +314,6 @@ export default async function VillaKajaPage() {
               reviewCount: rating.count,
               bestRating: 5,
             },
-          }),
-        }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "FAQPage",
-            mainEntity: faqList.map((item) => ({
-              "@type": "Question",
-              name: item.question,
-              acceptedAnswer: { "@type": "Answer", text: item.answer },
-            })),
           }),
         }}
       />

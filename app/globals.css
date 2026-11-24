@@ -2734,3 +2734,22 @@ a.adm-kpi:hover { border-color: var(--sea); }
   .contact-lines li, .contact-lines li:first-child { padding: 16px 0; }
   .contact-lines li + li { border-left: 0; border-top: 1px solid var(--line); }
 }
+
+/* ───────────── Villa Kaja: groups and FAQ ───────────── */
+.groups { background: var(--white); }
+.groups .house-points { max-width: 720px; margin-top: 0; }
+.faq-list { max-width: 820px; border-top: 1px solid var(--line); }
+.faq-list details { border-bottom: 1px solid var(--line); padding: 18px 0; }
+.faq-list summary {
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.faq-list summary::-webkit-details-marker { display: none; }
+.faq-list summary::after { content: "+"; color: var(--brass); flex: none; }
+.faq-list details[open] summary::after { content: "–"; }
+.faq-list details p { margin: 10px 0 0; color: var(--muted); max-width: 70ch; }

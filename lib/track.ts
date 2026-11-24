@@ -24,6 +24,7 @@ export type TrackEvent =
   | "Booking request sent"
   | "Booking paid"
   | "Question sent"
+  | "Rental reservation sent"
   | "Choose dates click"
   | "Airbnb click"
   | "Booking.com click"

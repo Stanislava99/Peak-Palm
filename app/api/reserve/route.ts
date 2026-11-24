@@ -12,6 +12,8 @@ import { HOUSE_NAMES, adminMessage, guestRequestAck } from "@/lib/email-template
 import { guard } from "@/lib/security";
 import { notifyEmails } from "@/lib/site-config";
 import { NextResponse } from "next/server";
+import { parseLines } from "@/lib/rentals";
+import { sendRentalReservation } from "@/lib/rental-notify";
 
 type Payload = {
   property?: string;
@@ -22,6 +24,8 @@ type Payload = {
   email?: string;
   phone?: string;
   note?: string;
+  /** Optional ski equipment / ski school to reserve (Villa Kaja only). */
+  rental?: unknown;
 };
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
@@ -45,6 +49,10 @@ export async function POST(request: Request) {
   const phone = (body.phone ?? "").trim();
   const note = (body.note ?? "").trim().slice(0, 800);
 
+  const rental = property === "kaja" ? parseLines(body.rental) : [];
+  if (rental === null) {
+    return NextResponse.json({ error: "Check the ski equipment and ski school lines." }, { status: 400 });
+  }
   if (!datePattern.test(checkIn) || !datePattern.test(checkOut)) {
     return NextResponse.json({ error: "Choose a check-in and check-out date." }, { status: 400 });
   }
@@ -118,6 +126,19 @@ export async function POST(request: Request) {
       { error: "The request could not be sent right now. Please try again in a few minutes." },
       { status: 503 },
     );
+  }
+  if (rental.length) {
+    await sendRentalReservation({
+      ref: id,
+      name,
+      email,
+      phone,
+      checkIn,
+      checkOut,
+      guests,
+      bookedVia: "this website (booking request, not paid yet)",
+      lines: rental,
+    }).catch((error) => console.error("Rental reservation email failed", (error as Error).message));
   }
   await sendEmail({ to: [email], ...guestRequestAck({ name, house: houseName, checkIn, checkOut, guests, ref: id }) });
 

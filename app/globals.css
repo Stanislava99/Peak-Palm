@@ -2734,3 +2734,88 @@ a.adm-kpi:hover { border-color: var(--sea); }
   .contact-lines li, .contact-lines li:first-child { padding: 16px 0; }
   .contact-lines li + li { border-left: 0; border-top: 1px solid var(--line); }
 }
+
+/* ───────────── Ski equipment & ski school reservation ───────────── */
+.rental-page .checkout-head { max-width: 760px; }
+.rental-page .checkout-head .eyebrow { margin: 0 0 8px; }
+.rental-body { max-width: 920px; }
+.rental-done { display: grid; gap: 14px; justify-items: start; }
+.rental-teaser { padding-top: 24px; padding-bottom: 24px; }
+.rental-teaser-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 24px;
+  align-items: center;
+  padding: 28px 32px;
+  border-radius: 24px;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+}
+.rental-teaser-card h2 { font-size: clamp(1.7rem, 3vw, 2.4rem); }
+.rental-teaser-card p:last-child { margin: 8px 0 0; color: var(--muted); max-width: 620px; }
+.rental-teaser-card .eyebrow { margin: 0 0 6px; }
+.rental-teaser-card .button { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+@media (max-width: 760px) {
+  .rental-teaser-card { grid-template-columns: 1fr; padding: 22px 20px; gap: 14px; }
+  .rental-teaser-card .button { justify-content: center; }
+}
+.rental-form h3, .rental-done h3 { font-size: 1.6rem; }
+.rental-done p { margin: 8px 0 0; color: var(--muted); }
+.checkout-rental { display: grid; gap: 14px; padding: 16px; border-radius: 16px; border: 1px dashed var(--line); background: var(--paper); }
+.checkout-rental .checkout-accept b { color: var(--ink); }
+.rental-picker { display: grid; gap: 12px; min-width: 0; container-type: inline-size; }
+.rental-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.rental-line { padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--white); display: grid; gap: 10px; }
+.rental-line-head { display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--brass); }
+.rental-remove { border: 0; background: none; padding: 4px 0; color: var(--clay); font-size: 0.85rem; cursor: pointer; text-transform: none; letter-spacing: 0; }
+.rental-fields { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.rental-fields label { grid-column: span 1; display: grid; gap: 4px; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); min-width: 0; }
+.rental-fields .rental-wide { grid-column: span 2; }
+.rental-fields input, .rental-fields select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 10px;
+  font: inherit;
+  font-size: 0.95rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink);
+  background: var(--paper);
+}
+.rental-fields input:focus, .rental-fields select:focus { outline: none; border-color: var(--pine); background: var(--white); }
+.rental-line-price { display: flex; justify-content: space-between; gap: 12px; margin: 0; font-size: 0.85rem; color: var(--muted); }
+.rental-line-price b { color: var(--ink); font-size: 1rem; white-space: nowrap; }
+.rental-add { display: flex; flex-wrap: wrap; gap: 10px; }
+.rental-add .button { padding: 10px 16px; font-size: 0.92rem; background: var(--white); cursor: pointer; }
+.rental-add .button:disabled { opacity: 0.45; cursor: not-allowed; }
+.rental-total { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 0; padding: 14px 16px; border-radius: 14px; background: #f5ecda; color: var(--pine-deep); }
+.rental-total span { display: grid; gap: 2px; font-weight: 500; }
+.rental-total small { font-weight: 400; font-size: 0.82rem; color: var(--muted); }
+.rental-total strong { font-size: 1.3rem; white-space: nowrap; }
+.rental-prices { max-width: 920px; margin-top: 18px; }
+.rental-prices summary { cursor: pointer; color: var(--pine-2); font-weight: 600; }
+.rental-tables { display: grid; gap: 14px; margin-top: 14px; }
+.rental-tables h4 { margin: 8px 0 0; font-family: var(--font-display), Georgia, serif; font-size: 1.4rem; font-weight: 560; }
+.rental-table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--line); background: var(--white); }
+.rental-tables table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 640px; }
+.rental-tables caption { text-align: left; padding: 10px 12px 4px; font-weight: 600; color: var(--ink); }
+.rental-tables th, .rental-tables td { padding: 7px 10px; border-top: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.rental-tables thead th { color: var(--muted); font-weight: 500; font-size: 0.78rem; }
+.rental-tables th[scope="row"], .rental-tables thead th:first-child { text-align: left; font-weight: 500; white-space: normal; }
+.rental-tables th small { display: block; color: var(--muted); font-weight: 400; font-size: 0.75rem; }
+/* Lay the fields out by the picker's own width (it sits in the narrow checkout column too). */
+@container (max-width: 640px) {
+  .rental-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container (max-width: 400px) {
+  .rental-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rental-fields .rental-wide { grid-column: 1 / -1; }
+  .rental-line-price { flex-direction: column; gap: 2px; }
+}
+@media (max-width: 720px) {
+  .rental-fields input, .rental-fields select { font-size: 16px; }
+}
+.rental-teaser-icon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: var(--white); color: var(--pine); border: 1px solid var(--line); }
+@media (max-width: 760px) { .rental-teaser-icon { width: 52px; height: 52px; } }

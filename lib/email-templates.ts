@@ -6,6 +6,8 @@ import { formatMoney } from "./pricing";
 import { contactEmail, isTestSite } from "./site-config";
 import { getSiteUrl } from "./site";
 import { formatLong, nightsBetween } from "./stay";
+import { priceLines } from "./rentals";
+import type { RentalReservation } from "./pdf/rental";
 
 export const HOUSE_NAMES = { kaja: "Villa Kaja", janis: "Jani’s Beach House" } as const;
 const HOUSE_PLACES = { kaja: "18 Sveti Ivan Rilski Street, Bansko, Bulgaria", janis: "Neoi Epivates, Thermaikos, Greece" } as const;
@@ -325,5 +327,59 @@ export function adminNewReview(b: Booking, review: { name: string; rating: numbe
         button(`${getSiteUrl()}/admin#reviews`, "Publish on the admin page"),
     ),
     text: `New ${review.rating}-star review from ${review.name} (${HOUSE_NAMES[b.property]}, ${b.ref}):\n\n${review.text}\n\nPublish it: ${getSiteUrl()}/admin#reviews`,
+  };
+}
+
+/* ── Ski equipment & ski school reservations (no payment; Frosina passes them to the shop) ── */
+
+function rentalRows(r: RentalReservation): Row[] {
+  const { lines, total, someOnRequest } = priceLines(r.lines);
+  return [
+    ...lines.map(
+      (l): Row => [
+        `${formatLong(l.from)}`,
+        `<b>${esc(l.title)}</b><br><span style="color:#5d6b78">${esc(l.detail)}</span> · ${l.price === null ? "price on request" : l.price === 0 ? "free" : formatMoney(l.price)}`,
+      ],
+    ),
+    ["Estimated total", `<b>${formatMoney(total)}</b>${someOnRequest ? " + lessons on request" : ""} · paid at the shop, nothing paid online`],
+  ];
+}
+
+const rentalText = (r: RentalReservation) => {
+  const { lines, total } = priceLines(r.lines);
+  return `${lines.map((l) => `- ${formatLong(l.from)}: ${l.title}, ${l.detail}, ${l.price === null ? "price on request" : formatMoney(l.price)}`).join("\n")}\nEstimated total: ${formatMoney(total)} (paid at the shop)`;
+};
+
+export function adminRental(r: RentalReservation) {
+  const title = "Ski equipment / ski school reservation";
+  return {
+    subject: `${title} · ${r.name} · ${r.checkIn ? formatLong(r.checkIn) : "Villa Kaja"} · ${r.ref}`,
+    html: layout(
+      title,
+      p(`<b>${esc(r.name)}</b> wants to reserve ski equipment or ski school in Bansko. Nothing has been paid; the PDF is attached for the shop.`) +
+        rows([
+          ["Guest", esc(r.name)],
+          ["Email", `<a href="mailto:${esc(r.email)}">${esc(r.email)}</a>`],
+          ["Phone", `<a href="tel:${esc(r.phone)}">${esc(r.phone)}</a>`],
+          ...(r.checkIn && r.checkOut ? ([["Stay", `${esc(formatLong(r.checkIn))} – ${esc(formatLong(r.checkOut))}${r.guests ? ` · ${r.guests} guests` : ""}`]] as Row[]) : []),
+          ...(r.bookedVia ? ([["Booked via", esc(r.bookedVia) + (r.bookingRef ? ` · ${esc(r.bookingRef)}` : "")]] as Row[]) : []),
+          ["Reference", `<b>${esc(r.ref)}</b>`],
+          ...(r.note ? ([["Note", esc(r.note)]] as Row[]) : []),
+        ]) +
+        rows(rentalRows(r)),
+    ),
+    text: `${title} ${r.ref}\n${r.name} · ${r.email} · ${r.phone}\nStay: ${r.checkIn ?? "?"} → ${r.checkOut ?? "?"}${r.bookedVia ? ` (booked via ${r.bookedVia}${r.bookingRef ? `, ${r.bookingRef}` : ""})` : ""}\n${rentalText(r)}${r.note ? `\nNote: ${r.note}` : ""}`,
+  };
+}
+
+export function guestRentalAck(r: RentalReservation) {
+  return {
+    subject: `Your ski equipment / ski school reservation · ${r.ref}`,
+    html: layout(
+      `Thank you, ${r.name.split(" ")[0]}`,
+      p(`We’ve sent your reservation to ${esc(brand.host)}, who passes it to our partner shop in Bansko and gets back to you about sizes and pick-up. Nothing is paid now: you pay the shop or ski school in Bansko. Your reservation is attached as a PDF.`) +
+        rows(rentalRows(r)),
+    ),
+    text: `Thanks! ${brand.host} has your ski equipment / ski school reservation ${r.ref} and will pass it to the shop. Nothing is paid now.\n${rentalText(r)}`,
   };
 }

@@ -8,13 +8,13 @@ import { businessDetails, isTestSite } from "../site-config";
 import { formatLong, nightsBetween } from "../stay";
 import { CORMORANT_600, LOGO_LIGHT_PNG, NOTO_400, NOTO_600 } from "./assets";
 
-const PINE = rgb(0x12 / 255, 0x3b / 255, 0x5a / 255);
-const GOLD = rgb(0xc8 / 255, 0xa4 / 255, 0x6d / 255);
-const INK = rgb(0x10 / 255, 0x26 / 255, 0x3a / 255);
-const MUTED = rgb(0x56 / 255, 0x64 / 255, 0x72 / 255);
-const LINE = rgb(0xe3 / 255, 0xdc / 255, 0xcf / 255);
-const SAND = rgb(0xf7 / 255, 0xf3 / 255, 0xea / 255);
-const RED = rgb(0xb4 / 255, 0x41 / 255, 0x2f / 255);
+export const PINE = rgb(0x12 / 255, 0x3b / 255, 0x5a / 255);
+export const GOLD = rgb(0xc8 / 255, 0xa4 / 255, 0x6d / 255);
+export const INK = rgb(0x10 / 255, 0x26 / 255, 0x3a / 255);
+export const MUTED = rgb(0x56 / 255, 0x64 / 255, 0x72 / 255);
+export const LINE = rgb(0xe3 / 255, 0xdc / 255, 0xcf / 255);
+export const SAND = rgb(0xf7 / 255, 0xf3 / 255, 0xea / 255);
+export const RED = rgb(0xb4 / 255, 0x41 / 255, 0x2f / 255);
 
 const HOUSES = {
   kaja: { name: "Villa Kaja", address: "18 Sveti Ivan Rilski Street, 2770 Bansko, Bulgaria", times: "Check-in from 4:00 pm · Check-out by 11:00 am" },
@@ -122,7 +122,7 @@ export async function confirmationPdf(b: Booking, state: ConfirmationState, paid
   return Buffer.from(await pdf.save());
 }
 
-function drawSpaced(page: PDFPage, text: string, x: number, y: number, font: PDFFont, size: number, color = INK, spacing = 0) {
+export function drawSpaced(page: PDFPage, text: string, x: number, y: number, font: PDFFont, size: number, color = INK, spacing = 0) {
   if (!spacing) {
     page.drawText(text, { x, y, size, font, color });
     return;
@@ -134,17 +134,17 @@ function drawSpaced(page: PDFPage, text: string, x: number, y: number, font: PDF
   }
 }
 
-function rightText(page: PDFPage, text: string, x: number, y: number, font: PDFFont, size: number, color = INK, spacing = 0) {
+export function rightText(page: PDFPage, text: string, x: number, y: number, font: PDFFont, size: number, color = INK, spacing = 0) {
   const w = font.widthOfTextAtSize(text, size) + spacing * Math.max(0, text.length - 1);
   drawSpaced(page, text, x - w, y, font, size, color, spacing);
 }
 
-function centerText(page: PDFPage, text: string, x: number, y: number, font: PDFFont, size: number, color = INK, spacing = 0) {
+export function centerText(page: PDFPage, text: string, x: number, y: number, font: PDFFont, size: number, color = INK, spacing = 0) {
   const w = font.widthOfTextAtSize(text, size) + spacing * Math.max(0, text.length - 1);
   drawSpaced(page, text, x - w / 2, y, font, size, color, spacing);
 }
 
-function fit(text: string, font: PDFFont, size: number, max: number) {
+export function fit(text: string, font: PDFFont, size: number, max: number) {
   let out = text;
   while (out.length > 1 && font.widthOfTextAtSize(out, size) > max) out = out.slice(0, -2) + "…";
   return out;
@@ -164,7 +164,7 @@ function block(page: PDFPage, x: number, y: number, w: number, label: string, li
   });
 }
 
-function wrap(text: string, font: PDFFont, size: number, max: number) {
+export function wrap(text: string, font: PDFFont, size: number, max: number) {
   const out: string[] = [];
   let line = "";
   for (const word of text.split(" ")) {

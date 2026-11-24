@@ -10,6 +10,7 @@ import { HOLD_MINUTES, attachSession, createHold, releaseHold } from "@/lib/book
 import { NO_STORE, cleanText, guard } from "@/lib/security";
 import { NextResponse, after } from "next/server";
 import { trackFunnelServer } from "@/lib/funnel-server";
+import { encodeLines, parseLines } from "@/lib/rentals";
 
 type Payload = {
   property?: string;
@@ -26,6 +27,8 @@ type Payload = {
   marketing?: boolean;
   /** Honeypot: hidden field real guests never fill in. */
   website?: string;
+  /** Optional ski equipment / ski school to reserve (Villa Kaja only; nothing paid for it here). */
+  rental?: unknown;
 };
 
 /** Below this the price is treated as a reading error, never charged. */
@@ -74,6 +77,8 @@ export async function POST(request: Request) {
   if (phone.replace(/\D/g, "").length < 6) {
     return NextResponse.json({ error: "Add a phone number the host can reach you on." }, { status: 400 });
   }
+  const rental = property === "kaja" ? parseLines(body.rental) : [];
+  if (rental === null) return NextResponse.json({ error: "Check the ski equipment and ski school lines." }, { status: 400 });
   if (!body.accepted) {
     return NextResponse.json({ error: "Please accept the house rules and cancellation policy." }, { status: 400 });
   }
@@ -116,6 +121,8 @@ export async function POST(request: Request) {
     deposit,
     balance,
   });
+  // Sent to the hosts as a PDF once the deposit is paid (see rental-notify.ts).
+  if (rental.length) metadata.rental = encodeLines(rental).slice(0, 500);
 
   // With the database: hold the dates while the guest pays (atomic per house, so two guests
   // can't pay for the same nights on the live site).

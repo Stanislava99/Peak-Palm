@@ -6,6 +6,8 @@ import { SecurePay } from "./SecurePay";
 import { formatMoney } from "@/lib/pricing";
 import type { PropertyId } from "@/lib/properties";
 import { track, trackFunnel } from "@/lib/track";
+import type { RentalLine } from "@/lib/rentals";
+import { RentalPicker } from "./RentalPicker";
 
 const ARRIVAL_TIMES = ["Not sure yet", "Before 4 pm", "4–6 pm", "6–8 pm", "8–10 pm", "After 10 pm"];
 
@@ -15,11 +17,18 @@ function fieldOf(el: EventTarget | null): string | null {
   if (el instanceof HTMLTextAreaElement) return "message";
   if (el instanceof HTMLSelectElement) return "arrival";
   if (!(el instanceof HTMLInputElement)) return null;
+  if (el.closest(".checkout-rental")) return "rental";
   if (el.type === "checkbox") return el.closest(".is-optional") ? "offers" : "rules";
   if (el.autocomplete === "name") return "name";
   if (el.type === "email") return "email";
   if (el.type === "tel") return "phone";
   return null;
+}
+
+function nextDay(date: string) {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
 }
 
 /** Short reason for a failed /api/checkout call, by status (see app/api/checkout/route.ts). */
@@ -63,6 +72,11 @@ export function CheckoutForm({
   const [accepted, setAccepted] = useState(false);
   const [marketing, setMarketing] = useState(false);
   const [website, setWebsite] = useState("");
+  const [rentalOn, setRentalOn] = useState(false);
+  const [rental, setRental] = useState<RentalLine[]>([]);
+  const rentalLines = property === "kaja" && rentalOn ? rental : [];
+  // Check-in is from 4 pm, so skiing usually starts the next morning.
+  const skiFrom = nextDay(checkIn);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requestRef, setRequestRef] = useState<string | null>(null);
@@ -130,14 +144,14 @@ export function CheckoutForm({
     track("Pay deposit clicked", { house: property, nights, guests, deposit: Math.round(deposit), online: paymentsOn });
     submitted.current = true;
     trackFunnel("Booking 4: form submitted", stay, {
-      data: { offers: marketing, message: note.trim().length > 0, arrivalSet: arrival !== ARRIVAL_TIMES[0] },
+      data: { offers: marketing, message: note.trim().length > 0, arrivalSet: arrival !== ARRIVAL_TIMES[0], rental: rentalLines.length },
     });
     try {
       if (paymentsOn) {
         const response = await fetch("/api/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ property, checkIn, checkOut, guests, name, email, phone, arrival, note, accepted, marketing, website }),
+          body: JSON.stringify({ property, checkIn, checkOut, guests, name, email, phone, arrival, note, accepted, marketing, website, rental: rentalLines }),
         });
         const data = (await response.json()) as { url?: string; error?: string };
         if (!response.ok || !data.url) {
@@ -168,6 +182,7 @@ export function CheckoutForm({
           email,
           phone,
           note: [arrival !== ARRIVAL_TIMES[0] ? `Arrival: ${arrival}` : "", note].filter(Boolean).join(" · "),
+          rental: rentalLines,
         }),
       });
       const data = (await response.json()) as { id?: string; error?: string };
@@ -248,6 +263,39 @@ export function CheckoutForm({
           />
         </label>
       </div>
+
+      {property === "kaja" ? (
+        <div className="checkout-rental">
+          <label className="checkout-accept is-optional">
+            <input
+              type="checkbox"
+              checked={rentalOn}
+              onChange={(e) => {
+                setRentalOn(e.target.checked);
+                if (e.target.checked && !rental.length) {
+                  setRental([{ type: "equipment", item: "a-spb", people: Math.min(guests, 15), from: skiFrom, days: Math.max(1, nights - 1) }]);
+                }
+              }}
+            />
+            <span>
+              <b>Reserve ski equipment or ski school</b> <small>Optional.</small>
+              <br />
+              Skis, snowboards, boots, helmets and lessons from our partner shop in Bansko. Nothing is paid for them now:
+              Frosina sends your reservation to the shop once you’ve booked, and you pay the shop in Bansko.
+            </span>
+          </label>
+          {rentalOn ? (
+            <RentalPicker
+              lines={rental}
+              onChange={setRental}
+              defaultFrom={skiFrom}
+              defaultDays={Math.max(1, nights - 1)}
+              defaultPeople={guests}
+              minDate={checkIn}
+            />
+          ) : null}
+        </div>
+      ) : null}
 
       <label className="hp-field" aria-hidden="true">
         Website

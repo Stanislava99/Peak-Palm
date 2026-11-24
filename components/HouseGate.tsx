@@ -32,7 +32,7 @@ export function HouseGate() {
         <span className="gate-copy">
           <em>Ski · Winter</em>
           <strong>Villa Kaja</strong>
-          <span>Bansko, Bulgaria · a private chalet five minutes from the gondola</span>
+          <span>Bansko, Bulgaria · a private chalet 200 metres from the gondola</span>
           <i>
             Explore the chalet <b aria-hidden="true">→</b>
           </i>

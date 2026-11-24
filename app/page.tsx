@@ -57,11 +57,11 @@ const houses: House[] = [
       { src: "/photos/16-ski.jpg", alt: "Wooden ski rack against a stone wall" },
     ],
     summary:
-      "A private holiday house for up to 15 guests, with five bedrooms, a private sauna, ski storage, and parking, about a five-minute walk from the gondola.",
+      "A private holiday house for up to 15 guests, with five bedrooms, a private sauna, ski storage, and parking, about 200 metres from the gondola.",
     facts: [
       ["15", "Guests"],
       ["5", "Bedrooms"],
-      ["5 min", "To the gondola"],
+      ["200 m", "To the gondola"],
     ],
     highlights: [
       ["sauna", "Private sauna"],

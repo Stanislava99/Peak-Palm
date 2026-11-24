@@ -181,7 +181,7 @@ export function RentalPicker({
           <span>
             Estimated price at the shop
             <small>
-              Reservation only: nothing is paid now. You pay the shop or ski school in Bansko.
+              <b>Reservation only: you pay nothing now.</b> You pay the shop or ski school in Bansko.
               {someOnRequest ? " Lessons outside the published season dates are priced on request." : ""}
             </small>
           </span>

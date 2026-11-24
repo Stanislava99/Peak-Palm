@@ -160,6 +160,9 @@ export function RentalReserve() {
           </div>
 
           <h3>What to reserve</h3>
+          <p className="reserve-only-line">
+            <span className="reserve-only">Reserve only · nothing to pay now</span> You pay the shop in Bansko.
+          </p>
           <RentalPicker
             lines={lines}
             onChange={setLines}

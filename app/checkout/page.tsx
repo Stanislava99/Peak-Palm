@@ -129,19 +129,17 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
             </a>
           </div>
         ) : (
-          <div className="checkout-layout">
-            <section className="checkout-main" aria-label="Your details">
-              <CheckoutForm
-                property={property}
-                checkIn={checkIn}
-                checkOut={checkOut}
-                guests={guests}
-                deposit={split!.deposit}
-                total={quote?.directTotal}
-                paymentsOn={paymentsEnabled(property)}
-                houseName={house.name}
-                cancelled={one(params.cancelled) === "1"}
-              />
+          <CheckoutForm
+            property={property}
+            checkIn={checkIn}
+            checkOut={checkOut}
+            guests={guests}
+            deposit={split!.deposit}
+            total={quote?.directTotal}
+            paymentsOn={paymentsEnabled(property)}
+            houseName={house.name}
+            cancelled={one(params.cancelled) === "1"}
+            policies={
               <div className="checkout-policies">
                 <div>
                   <h3>Cancellation</h3>
@@ -161,9 +159,9 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                   </ul>
                 </div>
               </div>
-            </section>
-
-            <aside className="checkout-summary" aria-label="Your stay">
+            }
+            summary={
+              <>
               <div className="summary-house">
                 <span className="summary-photo">
                   <Image src={house.photo} alt={house.alt} fill sizes="120px" />
@@ -228,12 +226,10 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                   <span>The other {DEPOSIT_LABEL}, paid on site, on arrival.</span>
                 </li>
               </ol>
-              <p className="summary-secure">
-                <Icon name="key" size={16} /> Secure payment by Stripe. Card details never touch this site.
-                {isTestMode() ? " (Test mode: use card 4242 4242 4242 4242.)" : ""}
-              </p>
-            </aside>
-          </div>
+              {isTestMode() ? <p className="summary-secure">Test mode: use card 4242 4242 4242 4242.</p> : null}
+              </>
+            }
+          />
         )}
       </main>
       <Footer />

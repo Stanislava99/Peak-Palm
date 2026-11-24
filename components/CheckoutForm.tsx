@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { DEPOSIT_LABEL, OFFERS_LINE } from "@/lib/booking-config";
 import { SecurePay } from "./SecurePay";
 import { formatMoney } from "@/lib/pricing";
 import type { PropertyId } from "@/lib/properties";
 import { track, trackFunnel } from "@/lib/track";
-import type { RentalLine } from "@/lib/rentals";
+import { priceLines, type RentalLine } from "@/lib/rentals";
 import { RentalPicker } from "./RentalPicker";
 
 const ARRIVAL_TIMES = ["Not sure yet", "Before 4 pm", "4–6 pm", "6–8 pm", "8–10 pm", "After 10 pm"];
@@ -51,6 +51,8 @@ export function CheckoutForm({
   paymentsOn,
   houseName,
   cancelled = false,
+  summary,
+  policies,
 }: {
   property: PropertyId;
   checkIn: string;
@@ -63,6 +65,10 @@ export function CheckoutForm({
   houseName: string;
   /** The guest came back from Stripe without paying (cancel_url adds cancelled=1). */
   cancelled?: boolean;
+  /** The stay and its price: the right column, above the pay button. */
+  summary: ReactNode;
+  /** Cancellation and house rules, under the guest details. */
+  policies: ReactNode;
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -80,6 +86,24 @@ export function CheckoutForm({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requestRef, setRequestRef] = useState<string | null>(null);
+  const ski = priceLines(rentalLines);
+  const asideRef = useRef<HTMLElement>(null);
+  // Keep the pay button on screen: when the right column is taller than the window, it sticks by its bottom edge.
+  useEffect(() => {
+    const aside = asideRef.current;
+    if (!aside) return;
+    const place = () => {
+      aside.style.top = `${Math.min(130, window.innerHeight - aside.offsetHeight - 20)}px`;
+    };
+    place();
+    const observer = new ResizeObserver(place);
+    observer.observe(aside);
+    window.addEventListener("resize", place);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", place);
+    };
+  }, []);
   const nights = Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000);
   const started = useRef(false);
   useEffect(() => {
@@ -202,24 +226,34 @@ export function CheckoutForm({
 
   if (requestRef) {
     return (
-      <div className="checkout-card checkout-done">
-        <h2>Request sent</h2>
-        <p>
-          The host will email you to confirm {houseName} and how to pay. Your reference is <b>{requestRef}</b>.
-        </p>
+      <div className="checkout-layout">
+        <section className="checkout-main">
+          <div className="checkout-card checkout-done">
+            <h2>Request sent</h2>
+            <p>
+              The host will email you to confirm {houseName} and how to pay. Your reference is <b>{requestRef}</b>.
+            </p>
+          </div>
+          {policies}
+        </section>
+        <aside className="checkout-side">
+          <div className="checkout-summary">{summary}</div>
+        </aside>
       </div>
     );
   }
 
   return (
     <form
-      className="checkout-card checkout-form"
+      className="checkout-layout"
       onSubmit={submit}
       onFocusCapture={(event) => {
         const field = fieldOf(event.target);
         if (field) lastField.current = field;
       }}
     >
+      <section className="checkout-main" aria-label="Your details">
+      <div className="checkout-card checkout-form">
       {!paymentsOn ? (
         <div className="checkout-notice" role="note">
           <b>How payment works right now</b>
@@ -279,9 +313,9 @@ export function CheckoutForm({
             />
             <span>
               <b>Reserve ski equipment or ski school</b> <small>Optional.</small>
-              <br />
-              Skis, snowboards, boots, helmets and lessons from our partner shop in Bansko. Nothing is paid for them now:
-              Frosina sends your reservation to the shop once you’ve booked, and you pay the shop in Bansko.
+              <span className="reserve-only">Reserve only · nothing to pay now</span>
+              Skis, snowboards, boots, helmets and lessons from our partner shop in Bansko. They are not part of
+              your payment today: Frosina sends your reservation to the shop once you’ve booked, and you pay the shop in Bansko.
             </span>
           </label>
           {rentalOn ? (
@@ -302,17 +336,6 @@ export function CheckoutForm({
         <input tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} />
       </label>
 
-      <label className="checkout-accept">
-        <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} />
-        <span>
-          I accept the house rules and the cancellation policy below, and I’ve read the{" "}
-          <a href="/privacy" target="_blank" rel="noreferrer">
-            privacy notice
-          </a>
-          .
-        </span>
-      </label>
-
       {paymentsOn ? (
         <label className="checkout-accept is-optional">
           <input type="checkbox" checked={marketing} onChange={(e) => setMarketing(e.target.checked)} />
@@ -321,6 +344,36 @@ export function CheckoutForm({
           </span>
         </label>
       ) : null}
+
+      </div>
+      {policies}
+      </section>
+
+      <aside className="checkout-side" ref={asideRef} aria-label="Your stay and payment">
+      <div className="checkout-summary">{summary}</div>
+      <div className="checkout-paybox">
+      {rentalLines.length ? (
+        <div className="pay-ski" role="note">
+          <p className="pay-ski-row">
+            <b>Skis &amp; ski school</b>
+            <span className="reserve-only">Reserve only</span>
+          </p>
+          <p>
+            <b>You don’t pay for this now.</b> It is not part of the deposit or the house price. About {formatMoney(ski.total)}
+            {ski.someOnRequest ? ", plus lessons priced on request," : ""} paid at the shop in Bansko.
+          </p>
+        </div>
+      ) : null}
+      <label className="checkout-accept">
+        <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} />
+        <span>
+          I accept the house rules and the cancellation policy on this page, and I’ve read the{" "}
+          <a href="/privacy" target="_blank" rel="noreferrer">
+            privacy notice
+          </a>
+          .
+        </span>
+      </label>
 
       {error ? <p className="reserve-error">{error}</p> : null}
 
@@ -339,6 +392,8 @@ export function CheckoutForm({
           : "Nothing is charged now. You’ll receive a secure payment link by email once the host confirms your dates."}
       </p>
       {paymentsOn ? <SecurePay /> : null}
+      </div>
+      </aside>
     </form>
   );
 }

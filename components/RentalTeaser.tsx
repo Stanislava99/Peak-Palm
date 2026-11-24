@@ -9,7 +9,7 @@ export function RentalTeaser() {
           <Icon name="ski" size={28} />
         </span>
         <div>
-          <p className="eyebrow">Skis &amp; ski school</p>
+          <p className="eyebrow">Skis &amp; ski school <span className="reserve-only">Reserve only · nothing to pay now</span></p>
           <h2>Want to reserve your ski lessons or equipment?</h2>
           <p>
             Skis, snowboards, boots, helmets and lessons from our partner shop in Bansko, ready when you arrive. Reserve

@@ -54,6 +54,7 @@ export const EMAIL_KIND: Record<string, string> = {
   mailedBalance: "balance_paid",
   mailedBalanceFailed: "balance_failed",
   mailedReviewRequest: "review_request",
+  mailedRental: "rental_reservation",
 };
 
 /**

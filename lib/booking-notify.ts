@@ -5,6 +5,7 @@ import { sendOnce } from "./send-once";
 import { adminEvent, adminNewRequest, guestCancelledRefunded, guestConfirmed, guestDeclinedRefunded, guestDepositReceived } from "./email-templates";
 import { confirmationPdf } from "./pdf/confirmation";
 import { notifyEmails } from "./site-config";
+import { notifyRentalForBooking } from "./rental-notify";
 
 /** Sends an email (or pair) once per payment, remembered on the payment itself (see send-once.ts). */
 async function once(stripe: Stripe, intentId: string, flag: string, send: () => Promise<boolean>) {
@@ -28,7 +29,12 @@ export async function notifyDepositPaid(stripe: Stripe, booking: Booking, option
         return r.sent || r.error === "email not configured";
       })
     : true;
-  return hosts && guest;
+  // Skis / ski school added at checkout (Villa Kaja): the reservation PDF goes to the hosts too.
+  const rental = await notifyRentalForBooking(stripe, booking, options).catch((error) => {
+    console.error("Rental reservation email failed", (error as Error).message);
+    return false;
+  });
+  return hosts && guest && rental;
 }
 
 /** The guest’s first email: booking confirmed, with the branded PDF. */

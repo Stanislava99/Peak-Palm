@@ -22,9 +22,11 @@ type Props = {
   house?: string;
   /** Direct-booking discount in % (admin → Prices). */
   discount?: number;
+  /** Adds "Skis & school" (the /ski-rental page) to the section links. */
+  skiRental?: boolean;
 };
 
-export function Header({ sections = true, sibling, house, discount = DEFAULT_DISCOUNT }: Props) {
+export function Header({ sections = true, sibling, house, discount = DEFAULT_DISCOUNT, skiRental = false }: Props) {
   const DIRECT_DISCOUNT_LABEL = discountLabel(discount);
   const [solid, setSolid] = useState(false);
   const [open, setOpen] = useState(false);
@@ -37,7 +39,9 @@ export function Header({ sections = true, sibling, house, discount = DEFAULT_DIS
   }, []);
 
   const links: Array<{ href: string; label: string; extra?: boolean }> = sections
-    ? sectionLinks
+    ? skiRental
+      ? [...sectionLinks.slice(0, 3), { href: "/ski-rental", label: "Skis & school", extra: true }, ...sectionLinks.slice(3)]
+      : sectionLinks
     : [
         { href: "/villa-kaja", label: "Villa Kaja" },
         { href: "/janis", label: "Jani’s Beach House" },

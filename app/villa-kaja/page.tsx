@@ -1,5 +1,6 @@
 import { Availability } from "@/components/Availability";
 import { MeetHosts } from "@/components/MeetHosts";
+import { RentalTeaser } from "@/components/RentalTeaser";
 import { Gallery } from "@/components/Gallery";
 import { GuestScore, Stars } from "@/components/GuestScore";
 import { Faq, type FaqItem } from "@/components/Faq";
@@ -123,7 +124,7 @@ export default async function VillaKajaPage() {
   ]);
   return (
     <>
-      <Header discount={discount} house="Villa Kaja" sibling={{ href: "/janis", label: "Sea · Greece" }} />
+      <Header discount={discount} house="Villa Kaja" sibling={{ href: "/janis", label: "Sea · Greece" }} skiRental />
       <main id="top">
         <section className="hero">
           <Image src="/photos/01-exterior.jpg" alt="Villa Kaja, a white and stone chalet with a balcony, on a cobbled street in Bansko" fill priority sizes="100vw" />
@@ -205,6 +206,8 @@ export default async function VillaKajaPage() {
           initialSources={calendar.sources}
           paymentsOn={paymentsEnabled("kaja")}
         />
+
+        <RentalTeaser />
 
         <GuestScore
           score={rating.score}

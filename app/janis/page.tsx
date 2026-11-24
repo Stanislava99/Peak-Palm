@@ -2,7 +2,9 @@ import { Availability } from "@/components/Availability";
 import { MeetHosts } from "@/components/MeetHosts";
 import { Gallery } from "@/components/Gallery";
 import { GuestScore, Stars } from "@/components/GuestScore";
+import { Faq, type FaqItem } from "@/components/Faq";
 import { Footer } from "@/components/Footer";
+import { GroupsBand, type GroupType } from "@/components/GroupsBand";
 import { Header } from "@/components/Header";
 import { Icon, type IconName } from "@/components/Icons";
 import { janisPhotos, janisRooms } from "@/lib/janis-photos";
@@ -23,14 +25,16 @@ export const revalidate = 1800;
 const house = getProperty("janis");
 
 const description =
-  "Holiday house in Neoi Epivates, Greece, near Thessaloniki, for up to 9 guests. Three bedrooms, sea-view balconies, and a Blue Flag beach about 30 metres away.";
+  "Holiday house in Neoi Epivates, Greece, near Thessaloniki, for families and groups of up to 9 guests. Three bedrooms, four bathrooms, sea-view balconies, and a Blue Flag beach about 30 metres away.";
+
+const title = "Jani’s Beach House, Neoi Epivates — beach house for 9 near Thessaloniki";
 
 export const metadata: Metadata = {
-  title: "Jani’s Beach House, Neoi Epivates — beach house near Thessaloniki",
+  title,
   description,
   alternates: { canonical: "/janis" },
   openGraph: {
-    title: "Jani’s Beach House, Neoi Epivates — beach house near Thessaloniki",
+    title,
     description,
     url: "/janis",
     images: [
@@ -43,7 +47,7 @@ export const metadata: Metadata = {
 };
 
 const facts = [
-  { value: "9", label: "Guests" },
+  { value: String(house.maxGuests), label: "Guests" },
   { value: "3", label: "Bedrooms" },
   { value: "4", label: "Bathrooms" },
   { value: "30 m", label: "To the beach" },
@@ -57,6 +61,46 @@ const amenities: Array<[IconName, string, string]> = [
   ["leaf", "Backyard", "A private seating courtyard for coffee and long evenings. Barbecues are not allowed."],
   ["key", "Self check-in", "A lockbox on the door, so the group can arrive without waiting for a handover."],
 ];
+
+const groupTypes: GroupType[] = [
+  ["sea", "Families", "The sandy beach is about 30 metres from the door, and there is a private backyard for coffee and long evenings."],
+  ["umbrella", "Friends together", "Sea-view balconies for mornings, one dining table for dinners, and sunbeds and umbrellas included."],
+  ["plane", "Easy to reach", "Thessaloniki Airport is about 9 km away, and self check-in means nobody waits for a handover."],
+];
+
+function faqs(discountLabel: string): FaqItem[] {
+  return [
+    {
+      question: "How many people can stay at Jani’s Beach House?",
+      answer:
+        "Up to 9 guests. The house has three enclosed bedrooms, one of them a duplex with beds on two levels, and four bathrooms. The price in the calendar above updates for the number of guests you choose.",
+    },
+    {
+      question: "How far is the beach?",
+      answer:
+        "About 30 metres. The house faces a Blue Flag sandy beach on the Thermaic Gulf. The beach is public, and sunbeds and umbrellas are included with the house.",
+    },
+    {
+      question: "Is the house good for families or a group of friends?",
+      answer:
+        "Yes. You get the whole house to yourselves: three bedrooms upstairs, a kitchen, dining table and living room below, sea-view balconies, and a private backyard. Barbecues are not allowed.",
+    },
+    {
+      question: "How far is it from Thessaloniki and the airport?",
+      answer:
+        "Thessaloniki Airport is about 9 km away and the centre of Thessaloniki about 20 km. Buses run into the city, and restaurants and shops in the village are a short walk.",
+    },
+    {
+      question: "How does check-in work?",
+      answer:
+        "Self check-in with a lockbox on the door, so your group can arrive without waiting for a handover. Quiet hours are 11:00 pm to 8:00 am.",
+    },
+    {
+      question: "Is it cheaper to book directly?",
+      answer: `Yes. Booking on this website is ${discountLabel} below the booking platforms for the same dates. You pay a 50% deposit online and the rest on arrival.`,
+    },
+  ];
+}
 
 const categories: Array<[keyof AirbnbRating["categories"], string]> = [
   ["cleanliness", "Cleanliness"],
@@ -154,6 +198,21 @@ export default async function JanisPage() {
           intro="From the path down to the sand, through the balconies, and into the rooms."
         />
 
+        <Availability
+          discount={discount}
+          property="janis"
+          maxGuests={house.maxGuests}
+          defaultGuests={house.defaultGuests}
+          kicker={`The whole house · up to ${house.maxGuests} guests`}
+          finePrint="Self check-in with a lockbox. Quiet hours are 11:00 pm to 8:00 am. The house is reserved for your group only."
+          airbnbUrl={house.airbnbUrl}
+          intro={`Pick your dates and guests to see your direct price, ${DIRECT_DISCOUNT_LABEL} below booking platforms. At checkout you pay a 50% deposit (the rest paid on site, on arrival); the host then confirms your booking by email.`}
+          initialDays={firstMonths(calendar.days)}
+          initialError={calendar.error}
+          initialSources={calendar.sources}
+          paymentsOn={paymentsEnabled("janis")}
+        />
+
         <GuestScore
           score={rating.score}
           live={rating.live}
@@ -179,22 +238,15 @@ export default async function JanisPage() {
           </div>
         </section>
 
-        <Availability
-          discount={discount}
-          property="janis"
+        <GroupsBand
           maxGuests={house.maxGuests}
-          defaultGuests={house.defaultGuests}
-          kicker="The whole house · up to 9 guests"
-          finePrint="Self check-in with a lockbox. Quiet hours are 11:00 pm to 8:00 am. The house is reserved for your group only."
-          airbnbUrl={house.airbnbUrl}
-          intro={`Pick your dates and guests to see your direct price, ${DIRECT_DISCOUNT_LABEL} below booking platforms. At checkout you pay a 50% deposit (the rest paid on site, on arrival); the host then confirms your booking by email.`}
-          initialDays={firstMonths(calendar.days)}
-          initialError={calendar.error}
-          initialSources={calendar.sources}
-          paymentsOn={paymentsEnabled("janis")}
+          intro="Three bedrooms upstairs, the kitchen, dining table, and living room below, and the beach about 30 metres from the door."
+          types={groupTypes}
         />
 
         <MeetHosts property="janis" house="Jani’s Beach House" reviewCount={rating.count} communication={rating.categories.communication} />
+
+        <Faq items={faqs(DIRECT_DISCOUNT_LABEL)} />
 
         <section id="location" className="section location">
           <div>
@@ -245,7 +297,7 @@ export default async function JanisPage() {
             url: `${getSiteUrl()}/janis`,
             image: janisPhotos.map((p) => `${getSiteUrl()}${p.src}`),
             description:
-              "Beachfront house in Neoi Epivates for up to 9 guests, with three bedrooms, four bathrooms, and the sand about 30 metres away.",
+              `Beachfront house in Neoi Epivates for families and groups of up to ${house.maxGuests} guests, with three bedrooms, four bathrooms, and the sand about 30 metres away.`,
             address: {
               "@type": "PostalAddress",
               addressLocality: "Neoi Epivates",
@@ -260,7 +312,7 @@ export default async function JanisPage() {
               additionalType: "EntirePlace",
               numberOfBedrooms: 3,
               numberOfBathroomsTotal: 4,
-              occupancy: { "@type": "QuantitativeValue", value: 9 },
+              occupancy: { "@type": "QuantitativeValue", value: house.maxGuests },
             },
             aggregateRating: {
               "@type": "AggregateRating",

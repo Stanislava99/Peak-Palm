@@ -2,7 +2,9 @@ import { Availability } from "@/components/Availability";
 import { MeetHosts } from "@/components/MeetHosts";
 import { Gallery } from "@/components/Gallery";
 import { GuestScore, Stars } from "@/components/GuestScore";
+import { Faq, type FaqItem } from "@/components/Faq";
 import { Footer } from "@/components/Footer";
+import { GroupsBand, type GroupType } from "@/components/GroupsBand";
 import { Header } from "@/components/Header";
 import { Icon, type IconName } from "@/components/Icons";
 import { photos, rooms } from "@/lib/photos";
@@ -23,14 +25,16 @@ const house = getProperty("kaja");
 const AIRBNB_URL = house.airbnbUrl;
 
 const description =
-  "Private holiday house in Bansko, Bulgaria, for up to 15 guests. Five bedrooms, a private sauna, ski storage, parking, and about a five-minute walk to the gondola.";
+  "Private holiday house in Bansko, Bulgaria, for groups of up to 15 guests. Five bedrooms, each with a bathroom, a private sauna, ski storage, parking, and about a five-minute walk to the gondola.";
+
+const title = "Villa Kaja Bansko — group chalet for 15 near the gondola";
 
 export const metadata = {
-  title: "Villa Kaja Bansko — holiday house near the gondola",
+  title,
   description,
   alternates: { canonical: "/villa-kaja" },
   openGraph: {
-    title: "Villa Kaja Bansko — holiday house near the gondola",
+    title,
     description,
     url: "/villa-kaja",
     images: [{ url: "/photos/01-exterior.jpg", alt: "The front of Villa Kaja in Bansko" }],
@@ -38,7 +42,7 @@ export const metadata = {
 };
 
 const facts = [
-  { value: "15", label: "Guests" },
+  { value: String(house.maxGuests), label: "Guests" },
   { value: "5", label: "Bedrooms" },
   { value: "5.5", label: "Bathrooms" },
   { value: "5 min", label: "To the gondola" },
@@ -52,6 +56,46 @@ const amenities: Array<[IconName, string, string]> = [
   ["ski", "Ski storage", "A rack by the stone wall so boots and skis stay out of the hallway."],
   ["parking", "Parking", "Private parking on the property, on a quiet residential street."],
 ];
+
+const groupTypes: GroupType[] = [
+  ["ski", "Ski groups", "The gondola is about five minutes on foot. Skis go on the rack by the door, and the day ends in the sauna."],
+  ["bed", "Families", "Five bedrooms, each with its own bathroom, a kitchen for everyone's meals, and a quiet residential street."],
+  ["kitchen", "Friends together", "One house instead of several hotel rooms, and one dining table that seats the whole group."],
+];
+
+function faqs(discountLabel: string): FaqItem[] {
+  return [
+    {
+      question: "How many people can stay at Villa Kaja?",
+      answer:
+        "Up to 15 guests. The house has five bedrooms: four double or triple rooms and one apartment for four, and every bedroom has its own bathroom. The price in the calendar above updates for the number of guests you choose.",
+    },
+    {
+      question: "Is Villa Kaja close to the gondola?",
+      answer:
+        "Yes. The gondola lift is about a five-minute walk from the house, so you can leave the car parked for the whole week. Restaurants and the centre of Bansko are also within walking distance.",
+    },
+    {
+      question: "Is the house good for a ski group or a big family?",
+      answer:
+        "That is who it is built for. You get the whole house to yourselves, with a ski rack, a private sauna, a kitchen, a living room with a large TV and a foosball table, and a dining table for everyone. The street is quiet and residential, which suits families with children.",
+    },
+    {
+      question: "Do we share the house with other guests?",
+      answer:
+        "No. Villa Kaja is booked as a whole house for one group only. Frosina and her husband Nikola, the hosts, look after every stay themselves.",
+    },
+    {
+      question: "How do we get to Villa Kaja?",
+      answer:
+        "The house is at 18 Sveti Ivan Rilski Street in Bansko. Sofia airport is roughly a two-and-a-half-hour drive, and there is private parking at the house.",
+    },
+    {
+      question: "Is it cheaper to book directly?",
+      answer: `Yes. Booking on this website is ${discountLabel} below the booking platforms for the same dates. You pay a 50% deposit online and the rest on arrival.`,
+    },
+  ];
+}
 
 const categories: Array<[keyof AirbnbRating["categories"], string]> = [
   ["cleanliness", "Cleanliness"],
@@ -147,6 +191,21 @@ export default async function VillaKajaPage() {
           intro="Move through the house the way a guest does, from the street to the sauna."
         />
 
+        <Availability
+          discount={discount}
+          property="kaja"
+          maxGuests={house.maxGuests}
+          defaultGuests={house.defaultGuests}
+          kicker={`Whole chalet · up to ${house.maxGuests} guests`}
+          finePrint="Check-in after 4:00 pm. Check-out by 11:00 am. The house is reserved for your group only."
+          airbnbUrl={AIRBNB_URL}
+          intro={`Pick your dates and guests to see your direct price, ${DIRECT_DISCOUNT_LABEL} below booking platforms. At checkout you pay a 50% deposit (the rest paid on site, on arrival); the host then confirms your booking by email.`}
+          initialDays={firstMonths(calendar.days)}
+          initialError={calendar.error}
+          initialSources={calendar.sources}
+          paymentsOn={paymentsEnabled("kaja")}
+        />
+
         <GuestScore
           score={rating.score}
           live={rating.live}
@@ -173,22 +232,15 @@ export default async function VillaKajaPage() {
           </div>
         </section>
 
-        <Availability
-          discount={discount}
-          property="kaja"
+        <GroupsBand
           maxGuests={house.maxGuests}
-          defaultGuests={house.defaultGuests}
-          kicker="Whole chalet · up to 15 guests"
-          finePrint="Check-in after 4:00 pm. Check-out by 11:00 am. The house is reserved for your group only."
-          airbnbUrl={AIRBNB_URL}
-          intro={`Pick your dates and guests to see your direct price, ${DIRECT_DISCOUNT_LABEL} below booking platforms. At checkout you pay a 50% deposit (the rest paid on site, on arrival); the host then confirms your booking by email.`}
-          initialDays={firstMonths(calendar.days)}
-          initialError={calendar.error}
-          initialSources={calendar.sources}
-          paymentsOn={paymentsEnabled("kaja")}
+          intro="Four double or triple bedrooms and an apartment for four, all under one roof, about five minutes on foot from the gondola."
+          types={groupTypes}
         />
 
         <MeetHosts property="kaja" house="Villa Kaja" reviewCount={rating.count} communication={rating.categories.communication} />
+
+        <Faq items={faqs(DIRECT_DISCOUNT_LABEL)} />
 
         <section id="location" className="section location">
           <div>
@@ -237,8 +289,7 @@ export default async function VillaKajaPage() {
             sameAs: [house.airbnbUrl, house.bookingUrl].filter(Boolean),
             url: `${getSiteUrl()}/villa-kaja`,
             image: photos.map((p) => `${getSiteUrl()}${p.src}`),
-            description:
-              "Private holiday chalet in Bansko for up to 15 guests, with five bedrooms, a private sauna, and gondola access on foot.",
+            description: `Private holiday chalet in Bansko for groups of up to ${house.maxGuests} guests, with five bedrooms, a private sauna, and the gondola about five minutes on foot.`,
             address: {
               "@type": "PostalAddress",
               streetAddress: "18 Sveti Ivan Rilski Street",
@@ -255,7 +306,7 @@ export default async function VillaKajaPage() {
               numberOfBathroomsTotal: 6,
               numberOfFullBathrooms: 5,
               numberOfPartialBathrooms: 1,
-              occupancy: { "@type": "QuantitativeValue", value: 15 },
+              occupancy: { "@type": "QuantitativeValue", value: house.maxGuests },
             },
             aggregateRating: {
               "@type": "AggregateRating",
